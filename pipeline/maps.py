@@ -21,9 +21,9 @@ SCALE = 3  # output pixels per density bin
 THRESH = 0.08  # fraction of median traffic below which a bin counts as "never walked"
 MAX_PINHOLE = 6  # bins (50cm each); smaller enclosed gaps are sampling noise, not walls
 
-FLOOR = (38, 44, 56, 255)
-EDGE = (120, 134, 160, 255)
-TRAFFIC = np.array([70, 84, 110], dtype=np.float32)
+FLOOR = (250, 251, 253, 255)  # near-white floor on the page's pale blue-grey: a drafting sheet
+EDGE = (34, 50, 74, 255)  # ink navy walls
+TRAFFIC = np.array([214, 225, 236], dtype=np.float32)  # busy lanes tint faintly blue
 
 
 def render(grid: np.ndarray) -> tuple[Image.Image, np.ndarray]:
@@ -32,22 +32,24 @@ def render(grid: np.ndarray) -> tuple[Image.Image, np.ndarray]:
     smooth = ndimage.gaussian_filter(g, 0.7)
     # threshold relative to typical traffic so busy and quiet maps behave the same
     thr = max(0.5, THRESH * np.median(smooth[smooth > 0.05]))
+    # upsample the continuous field *before* thresholding so walls come out as smooth curves
+    smooth = ndimage.zoom(smooth, SCALE, order=1)
     mask = smooth > thr
-    mask = ndimage.binary_closing(mask, iterations=1)
+    mask = ndimage.binary_closing(mask, iterations=SCALE)
     # fill only pinholes (tiny gaps in coverage); real walls/boxes stay as holes
     holes = ndimage.binary_fill_holes(mask) & ~mask
     hl, hn = ndimage.label(holes)
     if hn:
         hs = ndimage.sum(holes, hl, range(1, hn + 1))
-        mask |= np.isin(hl, 1 + np.flatnonzero(hs <= MAX_PINHOLE))
+        mask |= np.isin(hl, 1 + np.flatnonzero(hs <= MAX_PINHOLE * SCALE * SCALE))
     lab, n = ndimage.label(mask)
     if n > 1:
         sizes = ndimage.sum(mask, lab, range(1, n + 1))
         mask = np.isin(lab, 1 + np.flatnonzero(sizes >= 0.002 * sizes.sum()))
-    edge = mask & ~ndimage.binary_erosion(mask)
+    edge = mask & ~ndimage.binary_erosion(mask, iterations=2)
 
     # subtle traffic shading inside the floor: busier lanes are slightly lighter
-    t = np.log1p(ndimage.gaussian_filter(g, 2.0))
+    t = np.log1p(ndimage.zoom(ndimage.gaussian_filter(g, 2.0), SCALE, order=1))
     t = t / (t.max() or 1)
 
     h, w = mask.shape
@@ -59,8 +61,7 @@ def render(grid: np.ndarray) -> tuple[Image.Image, np.ndarray]:
     img[edge] = EDGE
     # array is [x, y]; image rows go top->bottom, so transpose and flip so +y is up
     img = np.flipud(img.transpose(1, 0, 2))
-    im = Image.fromarray(img, "RGBA").resize((h * SCALE, w * SCALE), Image.NEAREST)
-    return im, mask
+    return Image.fromarray(img, "RGBA"), mask
 
 
 def main():

@@ -28,7 +28,7 @@ import zstandard
 
 from .config import DATA_DIR, RAW_DIR, MAP_BIN_CM
 
-TABLES = ("loadouts", "rounds", "engagements", "casts")
+TABLES = ("loadouts", "rounds", "engagements", "casts", "spawns")
 
 
 def ts_ms(s: str) -> int:
@@ -104,6 +104,9 @@ class SeriesExtractor:
                     self.round_no = e["target"]["state"]["sequenceNumber"]
                     self.round_start = now
                     self.freeze_end = None
+                elif t == "round-started-freezetime" and e.get("seriesState"):
+                    # buy phase just began: everyone is still standing in spawn
+                    self._spawns(e)
                 elif t == "round-ended-freezetime":
                     self.freeze_end = now
                     self.round_no = e["actor"]["state"]["sequenceNumber"]
@@ -128,6 +131,19 @@ class SeriesExtractor:
         for k in self.round_index:
             self.round_index[k].sort()
         return self
+
+    def _spawns(self, e):
+        gm = _current_game(e["seriesState"])
+        if not gm:
+            return
+        rno = e["actor"]["state"].get("sequenceNumber")
+        for tm in gm.get("teams", []):
+            for p in tm.get("players", []):
+                pos = p.get("position")
+                if pos:
+                    self.rows["spawns"].append(dict(
+                        series_id=self.sid, game_id=self.game_id, map=self.map, round_no=rno,
+                        side=tm.get("side"), x=pos["x"], y=pos["y"]))
 
     def _loadouts(self, e, now):
         gm = _current_game(e["seriesState"])

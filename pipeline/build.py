@@ -72,6 +72,14 @@ SELECT c.*, g.patch, g.event, g.started_at
 FROM read_parquet('{RAW}/casts/*.parquet', union_by_name=true) c
 JOIN games g USING (game_id);
 
+-- spawn per map & side: everyone's position when the buy phase starts (they can't have moved yet)
+CREATE OR REPLACE TABLE spawns AS
+SELECT s.map, s.side, median(s.x) AS x, median(s.y) AS y, count(*) AS n
+FROM read_parquet('{RAW}/spawns/*.parquet', union_by_name=true) s
+JOIN games g USING (game_id)
+WHERE s.side IS NOT NULL
+GROUP BY s.map, s.side;
+
 -- one row per (round, team): who (if anyone) carried a long rifle, and the result
 CREATE OR REPLACE TABLE op_rounds AS
 WITH t AS (
@@ -105,7 +113,7 @@ def main():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(DB_PATH.as_posix())
     con.execute(SQL)
-    for t in ("games", "teams", "loadouts", "rounds", "engagements", "casts", "op_rounds", "op_eng"):
+    for t in ("games", "teams", "loadouts", "rounds", "engagements", "casts", "spawns", "op_rounds", "op_eng"):
         print(f"{t:12s} {con.execute(f'SELECT count(*) FROM {t}').fetchone()[0]:>10,}")
     con.close()
 

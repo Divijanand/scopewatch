@@ -51,10 +51,8 @@ def connect(read_only=True):
 
 
 def spawns(con, map_name: str) -> dict:
-    """Spawn centroid per side for a map: everyone's position at buy-phase end."""
-    rows = con.execute(
-        """SELECT side, median(x), median(y) FROM loadouts
-           WHERE map = ? AND x IS NOT NULL GROUP BY side""", [map_name]).fetchall()
+    """Spawn point per side for a map (median position when the buy phase starts)."""
+    rows = con.execute("SELECT side, x, y FROM spawns WHERE map = ?", [map_name]).fetchall()
     return {s: (x, y) for s, x, y in rows}
 
 
@@ -119,13 +117,21 @@ def team_profile(f: Filters, con=None) -> dict:
     eng = [dict(zip(cols, r)) for r in eng]
 
     # forwardness per engagement (needs a single map for a meaningful axis)
-    if f.map and eng:
+    league_fwd = {}
+    if f.map:
         sp = spawns(con, f.map)
         if {"attacker", "defender"} <= sp.keys():
-            for e in eng:
-                own, enemy = (sp["defender"], sp["attacker"]) if e["side"] == "defender" else (
+            def fwd_for(side, x, y):
+                own, enemy = (sp["defender"], sp["attacker"]) if side == "defender" else (
                     sp["attacker"], sp["defender"])
-                e["fwd"] = round(float(forwardness(e["x"], e["y"], own, enemy)), 3)
+                return forwardness(x, y, own, enemy)
+            for e in eng:
+                e["fwd"] = round(float(fwd_for(e["side"], e["x"], e["y"])), 3)
+            # league baseline: every team's Operator engagements on this map, per side
+            for side, xs, ys in con.execute(
+                    """SELECT att_side, list(att_x), list(att_y) FROM op_eng
+                       WHERE map = ? AND att_x IS NOT NULL GROUP BY att_side""", [f.map]).fetchall():
+                league_fwd[side] = round(float(np.median(fwd_for(side, np.array(xs), np.array(ys)))), 3)
 
     kills = [e for e in eng if e["kind"] == "kill"]
     buckets = {}
@@ -147,5 +153,6 @@ def team_profile(f: Filters, con=None) -> dict:
         possession_shift=wilson(shifts[0], shifts[1]),
         kill_timing=buckets,
         median_kill_t=float(np.median([e["t_round"] for e in kills])) if kills else None,
+        league_fwd=league_fwd,
         engagements=eng,
     )
