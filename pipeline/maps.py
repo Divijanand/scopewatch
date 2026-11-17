@@ -18,6 +18,8 @@ from .config import CACHE_DIR, MAP_BIN_CM
 
 OUT = CACHE_DIR / "maps"
 SCALE = 3  # output pixels per density bin
+THRESH = 0.08  # fraction of median traffic below which a bin counts as "never walked"
+MAX_PINHOLE = 6  # bins (50cm each); smaller enclosed gaps are sampling noise, not walls
 
 FLOOR = (38, 44, 56, 255)
 EDGE = (120, 134, 160, 255)
@@ -27,10 +29,17 @@ TRAFFIC = np.array([70, 84, 110], dtype=np.float32)
 def render(grid: np.ndarray) -> tuple[Image.Image, np.ndarray]:
     g = grid.astype(np.float32)
     # walkable = seen at least a few times after light smoothing; fill pinholes, drop specks
-    smooth = ndimage.gaussian_filter(g, 1.0)
-    mask = smooth > max(0.6, np.percentile(smooth[smooth > 0], 8))
-    mask = ndimage.binary_closing(mask, iterations=2)
-    mask = ndimage.binary_fill_holes(mask)
+    smooth = ndimage.gaussian_filter(g, 0.7)
+    # threshold relative to typical traffic so busy and quiet maps behave the same
+    thr = max(0.5, THRESH * np.median(smooth[smooth > 0.05]))
+    mask = smooth > thr
+    mask = ndimage.binary_closing(mask, iterations=1)
+    # fill only pinholes (tiny gaps in coverage); real walls/boxes stay as holes
+    holes = ndimage.binary_fill_holes(mask) & ~mask
+    hl, hn = ndimage.label(holes)
+    if hn:
+        hs = ndimage.sum(holes, hl, range(1, hn + 1))
+        mask |= np.isin(hl, 1 + np.flatnonzero(hs <= MAX_PINHOLE))
     lab, n = ndimage.label(mask)
     if n > 1:
         sizes = ndimage.sum(mask, lab, range(1, n + 1))

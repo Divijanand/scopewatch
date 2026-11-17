@@ -36,7 +36,10 @@ cd scopewatch
 pip install -r requirements.txt
 python -m pipeline.extract        # ~10 min on 10 cores, writes cache/ (git-ignored)
 python -m pipeline.maps           # map outlines
+python -m pipeline.build          # DuckDB database: cache/scopewatch.duckdb
 ```
+
+Full corpus: 857 series, 2,078 maps, 42.5k rounds, 1.44M engagements, 29.4k Operator/Outlaw engagements.
 
 Set `STL_DATA_DIR` if the data lives somewhere else.
 
