@@ -1,0 +1,30 @@
+# Sky's The Limit 2026 hackathon data: licensed, must not be committed
+stl-hackathon-2026-grid-starter/
+*.zst
+*.jsonl
+# Decompressed copies or extracts built from the data
+*.parquet
+*.sqlite
+*.duckdb
+*.npz
+cache/
+series.csv
+meta/
+
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+web/dist/
+
+# OS / editor noise (keep .idea, .junie and .air: they are submission evidence)
+.DS_Store
+Thumbs.db
+.idea/workspace.xml
+.idea/shelf/
