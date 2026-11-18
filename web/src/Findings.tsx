@@ -125,6 +125,29 @@ function SiteBlock({ b, n, onOpen }: { b: Record<string, any> & { rate: Rate }; 
   )
 }
 
+type Wpa = { n: number; mean: number; lo: number; hi: number; league_mean: number }
+type WpaPlayer = { player_id: string; player_name: string; n: number; mean: number; lo?: number; hi?: number; small_sample?: boolean }
+
+const pts = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}`
+
+/** A scale in points of round-win chance: the team's likely range, its mean, and the league mean (hollow). */
+function WpaScale({ v }: { v: Wpa }) {
+  const lim = Math.max(10, Math.ceil(Math.max(Math.abs(v.lo), Math.abs(v.hi), Math.abs(v.league_mean)) / 5) * 5)
+  const x = (p: number) => `${((p + lim) / (2 * lim)) * 100}%`
+  return (
+    <div className="wpa" aria-hidden>
+      <span>{pts(-lim)}</span>
+      <span className="wpa-track">
+        <span className="wpa-zero" style={{ left: x(0) }} />
+        <span className="wpa-range" style={{ left: x(v.lo), width: `calc(${x(v.hi)} - ${x(v.lo)})` }} />
+        <span className="fwd-mark league" style={{ left: x(v.league_mean) }} />
+        <span className="fwd-mark team" style={{ left: x(v.mean) }} />
+      </span>
+      <span>{pts(lim)}</span>
+    </div>
+  )
+}
+
 type Props = {
   t: Tendencies
   focus: Focus | null
@@ -150,6 +173,10 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const s0 = setups?.breakdown[0]
   const d0 = deaths?.breakdown[0]
   const exe = t['att.executes']
+  const wpa = t['op.wpa']
+  const wv = wpa?.value as Wpa | undefined
+  // most rounds first: a one-round number never headlines
+  const wpaPlayers = ([...(wpa?.breakdown ?? [])] as unknown as WpaPlayer[]).sort((a, b) => b.n - a.n || a.player_name.localeCompare(b.player_name))
   const gamble = t['op.gamble']
   const esc = t['op.escapes']
   const broke = t['op.how_it_dies']
@@ -174,6 +201,50 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
 
   return (
     <div className="findings">
+      {wv && wv.n > 0 && (
+        <section>
+          <h3>What the Operator is worth</h3>
+          <p className="claim">
+            An Operator round is worth <b>{pts(wv.mean)} points</b> of round-win chance to them
+            {sideWord && <> on {sideWord}</>}, against <b>{pts(wv.league_mean)}</b> for every team here.
+          </p>
+          <span className={wv.n < 10 ? 'evidence thin' : 'evidence'}>
+            {wv.n} Operator rounds; likely between {pts(wv.lo)} and {pts(wv.hi)}.
+            {wv.n < 10 && ' Small sample, treat as a hint.'}
+          </span>
+          <WpaScale v={wv} />
+          <p className="aside">
+            {wv.lo <= wv.league_mean && wv.league_mean <= wv.hi
+              ? 'That range includes the league average, so this is a hint, not a real difference yet.'
+              : wv.mean > wv.league_mean
+                ? 'Their Operator earns more than the league’s, and the range doesn’t overlap the league average.'
+                : 'Their Operator earns less than the league’s, and the range doesn’t overlap the league average.'}
+          </p>
+          {wpaPlayers.length > 1 && (
+            <ul className="carriers">
+              {wpaPlayers.slice(0, 5).map((p) => (
+                <li key={p.player_id}>
+                  <span className="wpa-row">
+                    <span className="who">{p.player_name}</span>
+                    <span className="agents">{p.n} round{p.n === 1 ? '' : 's'}{p.small_sample ? ', too few for a range' : p.lo != null && p.hi != null ? `, likely ${pts(p.lo)} to ${pts(p.hi)}` : ''}</span>
+                    <span className="num">{pts(p.mean)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="hint">
+            Each Operator kill is credited with how much it moved the round-win chance, and the holder’s death is charged
+            the same way, using our win-probability model. The model doesn’t see positions, and trades aren’t split.
+          </p>
+          <ShowRounds n={wpa.evidence_counts.supporting + wpa.evidence_counts.contrary} onClick={() => onEvidence({
+            metric: wpa.metric, claim: 'Operator rounds where the rifle added round-win chance, and where it cost it.',
+            supportingLabel: `Added (${wpa.evidence_counts.supporting})`,
+            contraryLabel: `Cost (${wpa.evidence_counts.contrary})`,
+          })} />
+        </section>
+      )}
+      {wpa?.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
       {exe && side === 'attacker' && exe.breakdown.length > 0 && (
         <section>
           <h3>How they hit sites</h3>

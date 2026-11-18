@@ -25,4 +25,5 @@ A running log, written as the work happens. Each entry names the tool, the task,
 | 2026-11-18 | Junie | Operator value (WPA): fit/load/predict API, event scoring, holder WPA, series bootstrap, metric, tests | `0ab7120` |
 | 2026-11-18 | Claude Code (review of Junie) | Found: metric never registered (the API would fail on restart), 2–2.7 s per call, player filter ignored, an empty test | sent back to Junie |
 | 2026-11-18 | Junie | Fixes: registered, precomputed holder WPA (0.14–0.19 s), player filter, real logic test with a stub model, deterministic event order | `0ab7120` |
-| 2026-11-18 | Claude Code (integration) | Credited Tour de Force in WPA, rebuilt the scores, made every ranking deterministic (repeat loads differed on ties), cached reports per filter | _this commit_ |
+| 2026-11-18 | Claude Code (integration) | Credited Tour de Force in WPA, rebuilt the scores, made every ranking deterministic (repeat loads differed on ties), cached reports per filter | `2910dbe` |
+| 2026-11-18 | Claude Code | Operator value in the report: headline in points of round-win chance, league comparison, range scale, per-player values | _this commit_ |
