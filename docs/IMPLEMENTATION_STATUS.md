@@ -6,14 +6,15 @@ Working, partial, and planned items. Only "Working" items are claimed anywhere e
 
 | Item | Evidence |
 |---|---|
-| Streaming ingest of all 857 series with an undo stack for reversals, phase clocks (buy, pre/post-plant, post-round), position-repeat flags, cast quality policy | `engine/ingest`; 857 ok / 0 failed; 48 tests in total |
+| Streaming ingest of all 857 series with an undo stack for reversals, phase clocks (buy, pre/post-plant, post-round), position-repeat flags, cast quality policy | `engine/ingest`; 857 ok / 0 failed; 50 tests in total |
 | Source manifest: per-series checksums, parser version, dataset commit, reconciliation counts; idempotent re-runs; quarantine of malformed lines | `cache/v2/manifest.parquet`; re-run skips unchanged series; `test_malformed_lines_are_quarantined_not_fatal` |
 | Analytical store with round facts (win type, plant), team rounds with `inventory_known`, opening kills, spawns | `engine/store.py` |
-| Metric registry: 11 versioned Operator metrics with n/N, unknowns, Wilson intervals, supporting/contrary round keys | `engine/metrics`; 6 contract tests on hand-built tables; `docs/METRICS.md` generated from code |
+| Metric registry: 12 versioned metrics (11 Operator, 1 execute) with n/N, unknowns, Wilson intervals, supporting/contrary round keys | `engine/metrics`; 6 contract tests on hand-built tables; `docs/METRICS.md` generated from code |
 | Coverage report per filter (rounds, dates, patches, unknown inventory, retracted records, position repeats, cast quality) | `engine/coverage.py` |
 | API response times under the 500 ms goal (0.24–0.48 s) | VALIDATION.md, Performance |
 | API with envelopes (`data, coverage, warnings, definition_versions, dataset_revision, parser_version, filter_hash`): catalog, coverage, tendencies, spatial layer, paginated evidence, round context | `api/server.py`; endpoint check on real data |
 | UI: findings with sample sizes and ranges, "Show the rounds" evidence drawer (supporting / contrary), round timeline, "How this is measured", coverage strip, player and time filters linked to the map | Browser check 2026-11-17: Cloud9, Lotus defense, OXY 12 of 15 Operator rounds → 12 rounds → round 30 timeline |
+| Site executes on attack: site share vs league, pace, site-entry time and callouts, utility before the plant (per round and by ability), how defending Operators fared | `engine/metrics/executes.py`; `tests/test_executes.py`; browser check 2026-11-18, Cloud9 Lotus attack: A in 55 of 155, entry ~24 s at A Main/A Root, defending Operators died without a kill in 7 of 9 |
 | VOD links: paste a VOD and time one round; every round and kill in that map gets a watch link (YouTube/Twitch open at the second); re-time at any round | `engine/vod.py`, `/api/vod/*`; `tests/test_vod_gamble.py`; browser check 2026-11-18 (test link synced at round 23, then removed) |
 | The Operator as a gamble: what it buys (kept / traded / lost, with league share), escapes after a kill (movement abilities, per agent), how it gets broken (flash/stun, smoke, swarmed, duel) | `engine/metrics/gamble.py`, `engine/abilities.py`; browser check: Cloud9 Lotus defense loses it without an Operator kill in 9 of 15 rounds vs 36% league |
 | Findings in callout language: where the first Operator shot is taken (with league share) and where the holder dies; callout names on the map; click a callout to show those rounds | `engine/callouts.py`, `engine/metrics/setups.py`; `tests/test_callouts.py`; browser check 2026-11-18, G2 Lotus defense: C Main in 7 of 24 rounds |

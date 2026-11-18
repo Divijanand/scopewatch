@@ -19,6 +19,19 @@ Shared definitions:
 - **Economy**: team loadout value at buy-phase end: eco < 5,000 ≤ half < 15,000 ≤ full (D-006).
 
 
+## How they hit sites (`att.executes` v1)
+
+**Question:** On attack, which site does the team plant on, how fast, where does first contact happen, and what utility goes in before the plant?
+
+- **Population:** The team's attack rounds on one map (buy-phase end to round result)
+- **Numerator:** Rounds with a spike plant on this site
+- **Unit:** attack rounds
+- **Caveat:** The site is the nearest site callout to the plant position.
+- **Caveat:** Rounds without a plant are counted in the total but have no site: retakes and eco saves are mixed in there.
+- **Caveat:** Execute utility = abilities cast by the attackers in the 25 s before the plant. The feed records the cast, not where it landed.
+- **Caveat:** Against an Operator = rounds where a defender held an Operator/Outlaw at buy-phase end; 'lost it without a kill' means that holder died before the round result with no Operator kill.
+- **Caveat:** Site entry = the first hit or kill before the plant where the attacker involved stood in that site's callouts (for example A Main or A Rubble for an A plant). Rounds won without a fight there have no entry.
+
 ## Where it dies (`op.deaths` v1)
 
 **Question:** Where does the team's Operator/Outlaw holder die, and from where is the kill taken?

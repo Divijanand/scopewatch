@@ -2,7 +2,7 @@
 
 Checks that were actually run and what they showed. Dataset commit `496fa7f`, parser 2.0.1, run on 2026-11-17.
 
-## Automated tests (48 passing)
+## Automated tests (50 passing)
 
 `python -m pytest tests`. The fixtures are synthetic: invented teams, players and coordinates in GRID's documented shape, never extracts of the corpus.
 
@@ -18,6 +18,7 @@ Checks that were actually run and what they showed. Dataset commit `496fa7f`, pa
 | Ingest IO | Malformed lines are quarantined, not fatal |
 | Map transform | Corners and y-flip; round trip preserves native coordinates; missing geometry stays null; out-of-bounds detected; affine fit recovers a rotated image with zero holdout error; collinear landmarks rejected; minimap calibration swaps axes |
 | Ability quality | Every supplement quality state gets an explicit decision; `missing_both` never becomes 0,0; 1 Hz series detected |
+| Site executes | Plant → site; site entry ignores an early pick elsewhere and uses the attacker's own callout; only attacker utility in the 25 s before the plant counts; a defending Operator that died without a kill is counted; the defense view is empty and adds no warning |
 | VOD timing | One sync places every round (before and after it); the nearest earlier sync wins for edited VODs; no sync means no times; only http(s) links; negative times rejected; re-time replaces |
 | Operator gamble | Kept / traded / lost and stolen on hand-built rounds; a movement cast near the kill and death within 5 s; a nearby flash plus two shooters counts as blinded and swarmed, a flash 90 m away doesn't |
 | Callouts | Names read like comms; nearest anchor; a wall sends the name to the reachable anchor; far or missing positions stay unnamed; setups count the first Operator shot per round (hit then kill within 1 s counts as a kill), report unnamed rounds as unknown, and need a map and side; holder deaths |

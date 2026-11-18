@@ -80,6 +80,51 @@ function BucketRow({ b, detail, onOpen }: { b: Record<string, any> & { rate: Rat
   )
 }
 
+const UTIL_WORD: Record<string, [string, string]> = {
+  smoke: ['smoke', 'smokes'], flash: ['flash', 'flashes'], stun: ['stun', 'stuns'], info: ['recon', 'recon'],
+}
+
+function SiteBlock({ b, n, onOpen }: { b: Record<string, any> & { rate: Rate }; n: number; onOpen: () => void }) {
+  const u = b.utility_per_round as Record<string, number>
+  const utilText = Object.entries(UTIL_WORD)
+    .filter(([k]) => (u[k] ?? 0) >= 0.1)
+    .map(([k, [one, many]]) => `${u[k]} ${u[k] === 1 ? one : many}`)
+  const pace = (b.pace as { pace: string; k: number }[]).filter((p) => p.k > 0)
+  const vs = b.vs_op as { rounds: number; op_kill: Rate; lost_no_kill: Rate }
+  const league: Rate | null = b.league
+  return (
+    <li className="site">
+      <div className="site-head">
+        <span className="site-name">{b.site} site</span>
+        <Bar r={b.rate} />
+        <span className="num">{b.rate.k}<span className="of">/{n}</span></span>
+      </div>
+      <p>
+        Planted here in {pct(b.rate)} of attack rounds{league?.p != null && <> (league {pct(league)})</>}, round won {frac(b.won)}.
+        {b.entry_t != null && (
+          <> First fight in the {b.site} area at about <b>{Math.round(b.entry_t)}s</b>
+            {b.entry_callouts.length > 0 && <>, at {list((b.entry_callouts as { callout: string }[]).map((c) => c.callout))}</>}; plant at about {Math.round(b.plant_t)}s.</>
+        )}
+        {pace.length > 0 && <> Pace: {pace.map((p) => `${p.pace} ${p.k}`).join(', ')}.</>}
+      </p>
+      {utilText.length > 0 && (
+        <p>
+          Utility in the 25 s before the plant, per round: {utilText.join(', ')}.
+          {b.abilities.length > 0 && <> Most used: {(b.abilities as { ability: string; rounds: number }[]).slice(0, 4)
+            .map((a) => `${ability(a.ability)} (${a.rounds} of ${b.rate.k})`).join(', ')}.</>}
+        </p>
+      )}
+      {vs.rounds > 0 && (
+        <p className="site-op">
+          Against a defending Operator ({vs.rounds} round{vs.rounds === 1 ? '' : 's'}): it got a kill in {vs.op_kill.k} and
+          died without one in <b>{vs.lost_no_kill.k}</b>.
+        </p>
+      )}
+      <button className="show-rounds" onClick={onOpen}>Show the rounds</button>
+    </li>
+  )
+}
+
 type Props = {
   t: Tendencies
   focus: Focus | null
@@ -104,6 +149,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const deaths = t['op.deaths']
   const s0 = setups?.breakdown[0]
   const d0 = deaths?.breakdown[0]
+  const exe = t['att.executes']
   const gamble = t['op.gamble']
   const esc = t['op.escapes']
   const broke = t['op.how_it_dies']
@@ -128,6 +174,32 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
 
   return (
     <div className="findings">
+      {exe && side === 'attacker' && exe.breakdown.length > 0 && (
+        <section>
+          <h3>How they hit sites</h3>
+          <p className="claim">
+            They plant on <b>{exe.breakdown[0].site}</b> most: <b>{exe.breakdown[0].rate.k} of {exe.breakdown[0].rate.n}</b> attack
+            rounds{exe.breakdown[0].entry_t != null && <>, with the first fight there at about {Math.round(exe.breakdown[0].entry_t)}s</>}.
+          </p>
+          <Evidence r={exe.breakdown[0].rate} unit="attack rounds" />
+          <ol className="sites">
+            {exe.breakdown.map((b) => (
+              <SiteBlock key={b.site} b={b} n={exe.breakdown[0].rate.n}
+                         onOpen={() => onEvidence({
+                           metric: exe.metric, bucket: b.bucket, claim: `Attack rounds where they planted on ${b.site}.`,
+                           supportingLabel: `${b.site} plants (${b.rate.k})`, contraryLabel: 'Other sites',
+                         })} />
+            ))}
+          </ol>
+          {exe.value.no_plant?.n > 0 && (
+            <p className="hint">
+              Pace is by plant time: fast before 35 s, default 35–70 s, late after 70 s.
+              No plant in {frac(exe.value.no_plant)} attack rounds (won {frac(exe.value.no_plant_won)}). The feed records where
+              utility was thrown from, not where it landed: open the rounds and watch the VOD to see the actual execute.
+            </p>
+          )}
+        </section>
+      )}
       {gamble?.rate && gamble.rate.n > 0 && (
         <section>
           <h3>What the Operator buys them</h3>

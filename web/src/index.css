@@ -247,3 +247,13 @@ button, select, input { font: inherit; color: inherit; }
 .spots .spot-static { box-sizing: border-box; width: 100%; display: grid; grid-template-columns: minmax(7.5em, auto) 1fr 9em 2.2em; gap: 10px; align-items: center; padding: 6px 8px; }
 .spots button:disabled { cursor: default; opacity: .55; }
 @media (max-width: 640px) { .spots .spot-static { grid-template-columns: 1fr 5em 2em; } .spots .spot-static .detail { display: none; } }
+
+/* site executes */
+.sites { list-style: none; margin: 14px 0 8px; padding: 0; display: grid; gap: 14px; }
+.site { padding: 12px 14px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; }
+.site p { margin: 6px 0; color: var(--ink-2); max-width: 62ch; }
+.site p b { color: var(--ink); }
+.site-head { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+.site-name { font-weight: 700; font-size: 1.05rem; color: var(--ink); }
+.site-head .num .of { color: var(--ink-3); font-weight: 400; }
+.site-op { border-left: 3px solid var(--sky); padding-left: 8px; }

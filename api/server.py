@@ -32,7 +32,7 @@ SIDE = Query(None, pattern="^(attacker|defender)$")
 DATE = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 OP_METRICS = ["op.possession_full_buy", "op.holder_share", "op.kill_timing", "op.opening",
               "op.win_association", "op.forwardness", "op.setups", "op.deaths",
-              "op.gamble", "op.escapes", "op.how_it_dies"]
+              "op.gamble", "op.escapes", "op.how_it_dies", "att.executes"]
 
 
 def con():

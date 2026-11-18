@@ -92,3 +92,19 @@ Consequential choices and the evidence behind them. Newest last.
 **Why:** An analyst's framing: the Operator is a glass cannon. It pays off only if it earns kills and survives. Mobile agents carry it so they can shoot and leave. It gets broken by utility and coordinated takes.
 
 **Limits:** The feed records casts (who, when, from where, aim), never landings or who was blinded, so utility is "associated with", not "caused". The feed has no weapon pickups, so a stolen Operator is seen only when the enemy fires it. Ability classes are in `engine/abilities.py`.
+
+## D-013: Site executes on attack, and how defending Operators fare against them (2026-11-18)
+
+**Decision:** `att.executes` describes how a team takes each site on one map (`engine/metrics/executes.py`):
+- **Site:** the nearest site callout to the plant position.
+- **Share:** how often they plant there, against the league share.
+- **Pace:** by plant time.
+- **Site entry:** when and where the first fight in that site's own callouts happens. An early pick elsewhere is excluded.
+- **Utility:** abilities the attackers cast in the 25 s before the plant, per round and by ability.
+- **Against an Operator:** in rounds where a defender held an Operator, whether it got a kill or died without one.
+
+**Why:** It answers an analyst's question: how do you set up an Operator against this team's A execute? You get when and where they arrive, what utility they bring, and how Operators have fared against it.
+
+**Evidence:** Every plant in the corpus gets a site. On Lotus, plants split A 2,004 / C 1,965 / B 986.
+
+**Limits:** Rounds without a plant have no site (35 of 155 for Cloud9 on Lotus attack). Utility is the cast, not the landing. "Against an Operator" is small per team and site, so it's labelled with its count.
