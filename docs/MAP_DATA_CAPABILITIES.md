@@ -14,6 +14,7 @@ States: `supported`, `partial`, `unsupported`, `not_inspected`. General data cap
 | Map calibration | supported (13 of 13 maps) | Independent landmark check; MAP_CALIBRATION.md |
 | Ability landing locations | unsupported | Not in any feed (S5) |
 | Official callout polygons | unsupported | Not in the corpus; none used |
+| Community callout anchors | supported (external) | valorant-api.com, 17–28 points per map; nearest reachable anchor names 98.9–99.99% of positions (D-010) |
 | Elevation (z) in GRID events | unsupported | Supplement only |
 | Spawn locations | supported | Buy-phase-start positions (D-005) |
 | Spike plant locations | supported | Planter position on every plant in the 40-series audit (1,340 of 1,340); used as calibration landmarks |

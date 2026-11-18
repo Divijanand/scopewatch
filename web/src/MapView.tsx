@@ -19,10 +19,13 @@ type Props = {
   engagements: Engagement[]
   spawns: Record<string, { x: number; y: number }> | null
   showDamage: boolean
+  focus: { name: string; rounds: Set<string> } | null
 }
 
-export function MapView({ mapName, meta, engagements, spawns, showDamage }: Props) {
+export function MapView({ mapName, meta, engagements, spawns, showDamage, focus }: Props) {
   const [hover, setHover] = useState<Engagement | null>(null)
+  const [staleFor, setStaleFor] = useState<string | null>(null)
+  const stale = staleFor === meta.transform_version
 
   // versioned world->pixel transform from config/maps (native coordinates are never modified)
   const toPx = useMemo(() => {
@@ -31,12 +34,18 @@ export function MapView({ mapName, meta, engagements, spawns, showDamage }: Prop
   }, [meta])
   const calibrated = meta.calibration_status === 'validated'
 
-  const shown = engagements.filter((e) => e.x != null && (showDamage || e.kind === 'kill'))
+  const shown = engagements.filter((e) => e.x != null && (showDamage || e.kind === 'kill')
+    && (!focus || focus.rounds.has(e.round_key)))
   // kills on top of damage, later fights on top of earlier ones
   const ordered = [...shown].sort((a, b) => (a.kind === b.kind ? a.t_round - b.t_round : a.kind === 'kill' ? 1 : -1))
 
   return (
     <figure className="map">
+      {stale && (
+        <p className="warn map-warn" role="alert">
+          The map was rebuilt after this page loaded. Reload the page to draw fights on the new map.
+        </p>
+      )}
       {!calibrated && (
         <p className="warn map-warn" role="status">
           {meta.calibration_status === 'needs_review'
@@ -46,7 +55,19 @@ export function MapView({ mapName, meta, engagements, spawns, showDamage }: Prop
       )}
       <svg viewBox={`0 0 ${meta.width} ${meta.height}`} role="img"
            aria-label={`${cap(mapName)} with ${shown.length} Operator engagements`}>
-        <image href={`/api/maps/${mapName}.png?v=${meta.image_sha1 ?? meta.transform_version}`} width={meta.width} height={meta.height} />
+        <image href={`/api/maps/${mapName}.png?v=${encodeURIComponent(meta.transform_version)}`}
+               width={meta.width} height={meta.height} onError={() => setStaleFor(meta.transform_version)} />
+        <g className="callouts" aria-hidden>
+          {(meta.callouts ?? []).filter((c) => !c.name.endsWith('Spawn')).map((c) => {
+            const [x, y] = toPx(c.x, c.y)
+            const on = focus?.name === c.name
+            return (
+              <text key={c.name} x={x} y={y} textAnchor="middle" className={on ? 'callout on' : 'callout'}>
+                {c.name}
+              </text>
+            )
+          })}
+        </g>
         {spawns && Object.entries(spawns).map(([side, s]) => {
           const [x, y] = toPx(s.x, s.y)
           return (
@@ -86,7 +107,7 @@ export function MapView({ mapName, meta, engagements, spawns, showDamage }: Prop
             {hover.won ? 'won' : hover.won === false ? 'lost' : 'result unknown'}.
           </>
         ) : (
-          <>Each line runs from the Operator player to who they shot. Hover one for the round.</>
+          <>{focus ? <>Showing rounds for <strong>{focus.name}</strong>. </> : null}Each line runs from the Operator player to who they shot. Hover one for the round. Grey names are community callouts.</>
         )}
       </figcaption>
     </figure>

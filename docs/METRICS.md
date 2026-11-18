@@ -19,6 +19,16 @@ Shared definitions:
 - **Economy**: team loadout value at buy-phase end: eco < 5,000 ≤ half < 15,000 ≤ full (D-006).
 
 
+## Where it dies (`op.deaths` v1)
+
+**Question:** Where does the team's Operator/Outlaw holder die, and from where is the kill taken?
+
+- **Population:** Deaths of a player who held an Operator/Outlaw at buy-phase end, on one map and side, between buy-phase end and the round result
+- **Numerator:** Deaths at this callout
+- **Unit:** deaths
+- **Caveat:** Holder = had the Operator/Outlaw at buy-phase end; they may have dropped or swapped it.
+- **Caveat:** Callouts are the nearest reachable community callout anchor, an approximation.
+
 ## How far forward (`op.forwardness` v1)
 
 **Question:** How far toward the enemy spawn are their Operator fights, compared with every team on this map?
@@ -66,6 +76,18 @@ Shared definitions:
 - **Unit:** rounds
 - **Caveat:** Possession at buy-phase end, not purchase: the feed has no purchase events.
 - **Caveat:** Rounds without an inventory snapshot are reported as unknown, never as 'no Operator'.
+
+## Where they play it (`op.setups` v1)
+
+**Question:** Where is the Operator/Outlaw when the team fires it for the first time in a round?
+
+- **Population:** Team rounds on one map and side where the team fired an Operator/Outlaw (kill or hit) between buy-phase end and the round result
+- **Numerator:** Rounds whose first Operator shot was taken from this callout
+- **Unit:** rounds
+- **Caveat:** Callouts are the nearest community callout anchor the shooter could reach on the minimap; an approximation, not an official zone.
+- **Caveat:** First recorded Operator shot of the round: where the rifle fought, not necessarily where it set up.
+- **Caveat:** A first shot counts as a kill when the same player gets an Operator kill within 1 s.
+- **Caveat:** League share uses every team's rounds on the same map and side.
 
 ## Rounds won with it (`op.win_association` v1)
 

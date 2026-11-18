@@ -3,7 +3,7 @@ import { api, cap } from './api'
 import type { Catalog, Coverage, Query, Spatial, Team, TeamMap, Tendencies } from './api'
 import { MapView } from './MapView'
 import { Findings, bucketOf } from './Findings'
-import type { Bucket } from './Findings'
+import type { Bucket, Focus } from './Findings'
 import { EvidenceDrawer } from './Evidence'
 import type { EvidenceRequest } from './Evidence'
 
@@ -32,6 +32,7 @@ export default function App() {
   const [player, setPlayer] = useState<string | null>(null)
   const [buckets, setBuckets] = useState<Set<Bucket>>(new Set())
   const [showDamage, setShowDamage] = useState(true)
+  const [focus, setFocus] = useState<Focus | null>(null)
   const [tend, setTend] = useState<Tendencies | null>(null)
   const [coverage, setCoverage] = useState<Coverage | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
@@ -63,6 +64,7 @@ export default function App() {
 
   useEffect(() => {
     if (!q) return
+    setFocus(null)
     setLoading(true)
     Promise.all([api.tendencies(q), api.spatial(q)])
       .then(([t, s]) => {
@@ -143,19 +145,20 @@ export default function App() {
               <input type="checkbox" checked={showDamage} onChange={(e) => setShowDamage(e.target.checked)} />
               Show hits that didn’t kill
             </label>
-            {(player || buckets.size > 0) && (
-              <button className="reset" onClick={() => { setPlayer(null); setBuckets(new Set()) }}>Clear player and time filters</button>
+            {(player || buckets.size > 0 || focus) && (
+              <button className="reset" onClick={() => { setPlayer(null); setBuckets(new Set()); setFocus(null) }}>Clear filters</button>
             )}
           </nav>
 
           <div className={loading ? 'board loading' : 'board'} aria-busy={loading}>
             {map && catalog?.maps[map] && spatial && (
               <MapView mapName={map} meta={catalog.maps[map]} engagements={engagements}
-                       spawns={spatial.spawns} showDamage={showDamage} />
+                       spawns={spatial.spawns} showDamage={showDamage} focus={focus} />
             )}
             {tend && (
               <Findings t={tend} side={side} activePlayer={player} onPlayer={setPlayer}
-                        buckets={buckets} onBucket={toggleBucket} onEvidence={setEvidence} />
+                        buckets={buckets} onBucket={toggleBucket} onEvidence={setEvidence}
+                        focus={focus} onFocus={setFocus} />
             )}
           </div>
           <footer className="legend">

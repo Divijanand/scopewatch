@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import duckdb
 
+from . import callouts
+
 from .config import DATA_DIR, DB_PATH, MANIFEST_PATH, RAW_DIR
 
 RAW = RAW_DIR.as_posix()
@@ -133,6 +135,8 @@ def main():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(DB_PATH.as_posix())
     con.execute(SQL)
+    for m, st in callouts.annotate(con).items():
+        print(f"callouts {m:9s} {st['positions']:>8,} positions, {st['named']:.1%} named, median {st['median_dist_m']} m to anchor")
     for t in ("games", "rounds", "team_rounds", "player_rounds", "engagements", "casts", "objectives",
               "inventory_events", "spawns", "manifest"):
         print(f"{t:17s} {con.execute(f'SELECT count(*) FROM {t}').fetchone()[0]:>10,}")

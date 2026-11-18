@@ -208,3 +208,19 @@ button, select, input { font: inherit; color: inherit; }
 @media (max-width: 900px) { .round-view { padding-left: 8px; } .legend .lg-src { margin-left: 0; } }
 
 .map-warn { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--warn); background: var(--sheet); color: var(--warn); font-size: 0.9rem; }
+
+/* callout names on the map: quiet until one is in focus */
+.map .callout { font: 500 15px 'Archivo', sans-serif; fill: var(--ink-3); paint-order: stroke; stroke: var(--sheet); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.map .callout.on { font-weight: 700; fill: var(--ink); font-size: 18px; }
+
+/* callout lists in findings */
+.spots { list-style: none; margin: 12px 0 6px; padding: 0; display: grid; gap: 2px; }
+.spots button { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: minmax(7.5em, auto) 1fr 9em 2.2em; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 6px; }
+.spots button:hover { background: var(--hover, rgba(34,50,74,.05)); }
+.spots button:focus-visible { outline: 2px solid var(--sky); outline-offset: 1px; }
+.spots button[aria-pressed='true'] { background: rgba(28,159,224,.12); }
+.spots .where { font-weight: 600; }
+.spots .detail { color: var(--ink-2); font-size: .9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spots .num { text-align: right; }
+.bar .bar-league { position: absolute; top: 0; bottom: 0; width: 4px; margin-left: -2px; background: var(--sheet); border: 1px solid var(--ink); box-sizing: border-box; }
+@media (max-width: 640px) { .spots button { grid-template-columns: 1fr 5em 2em; } .spots .detail { display: none; } }

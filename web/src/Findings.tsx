@@ -37,8 +37,36 @@ function ShowRounds({ onClick, n }: { onClick: () => void; n: number }) {
   return <button className="show-rounds" onClick={onClick}>Show the rounds</button>
 }
 
+export type Focus = { metric: string; name: string; rounds: Set<string> }
+
+const list = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+
+function Spot({ b, focus, metric, onFocus, detail }: {
+  b: Record<string, any> & { rate: Rate }; focus: Focus | null; metric: string
+  onFocus: (f: Focus | null) => void; detail: string
+}) {
+  const on = focus?.metric === metric && focus.name === b.callout
+  const league: Rate | null = b.league ?? null
+  return (
+    <li>
+      <button aria-pressed={on}
+              onClick={() => onFocus(on ? null : { metric, name: b.callout, rounds: new Set(b.round_keys as string[]) })}>
+        <span className="where">{b.callout}</span>
+        <span className="detail">{detail}</span>
+        <span className="bar" aria-hidden>
+          <span className="bar-fill" style={{ width: `${(b.rate.p ?? 0) * 100}%` }} />
+          {league?.p != null && <span className="bar-league" style={{ left: `${league.p * 100}%` }} />}
+        </span>
+        <span className="num">{b.rate.k}</span>
+      </button>
+    </li>
+  )
+}
+
 type Props = {
   t: Tendencies
+  focus: Focus | null
+  onFocus: (f: Focus | null) => void
   side: string | null
   activePlayer: string | null
   onPlayer: (id: string | null) => void
@@ -47,7 +75,7 @@ type Props = {
   onEvidence: (req: EvidenceRequest) => void
 }
 
-export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, onEvidence }: Props) {
+export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, onEvidence, focus, onFocus }: Props) {
   const sideWord = side === 'attacker' ? 'attack' : side === 'defender' ? 'defense' : null
   const poss = t['op.possession_full_buy']
   const hold = t['op.holder_share']
@@ -55,6 +83,14 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const open = t['op.opening']
   const win = t['op.win_association']
   const fwd = t['op.forwardness']
+  const setups = t['op.setups']
+  const deaths = t['op.deaths']
+  const s0 = setups?.breakdown[0]
+  const d0 = deaths?.breakdown[0]
+  const sLeague: Rate | null = s0?.league ?? null
+  const sCompare = s0 && sLeague?.p != null && s0.rate.p != null
+    ? s0.rate.p > sLeague.p * 1.5 ? 'far more often than' : s0.rate.p < sLeague.p / 1.5 ? 'less often than' : 'about as often as'
+    : null
   const main = hold.breakdown[0]
   const shift: Rate | undefined = hold.value.possession_shift
   const top = time.value.top_bucket as Bucket | undefined
@@ -66,6 +102,72 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
 
   return (
     <div className="findings">
+      {s0 && (
+        <section>
+          <h3>Where they play it</h3>
+          <p className="claim">
+            Their first Operator shot comes from <b>{s0.callout}</b> in <b>{s0.rate.k} of {s0.rate.n}</b> rounds
+            {s0.targets[0] && <>, aimed toward {s0.targets[0].callout}</>}. {s0.players[0] && <>Usually {s0.players[0].name}, </>}
+            around {Math.round(s0.median_t)}s in.
+          </p>
+          <Evidence r={s0.rate} unit="rounds with an Operator shot" />
+          {sCompare && (
+            <p className="aside">
+              That’s {sCompare} the rest of the league: every team’s Operator starts from {s0.callout} in{' '}
+              {pct(sLeague)} of their rounds here.
+            </p>
+          )}
+          <ul className="spots">
+            {setups.breakdown.slice(0, 6).map((b) => (
+              <Spot key={b.callout} b={b} focus={focus} metric={setups.metric} onFocus={onFocus}
+                    detail={`${list((b.players as { name: string }[]).slice(0, 2).map((p) => p.name))}${b.targets[0] ? ` → ${b.targets[0].callout}` : ''}, ${b.kills} kill${b.kills === 1 ? '' : 's'}`} />
+            ))}
+          </ul>
+          <p className="hint">
+            Click a callout to show only those rounds on the map. The hollow mark on each bar is the league share.
+            Callouts are the nearest community callout, an approximation.
+          </p>
+          <ShowRounds n={setups.evidence_counts.supporting} onClick={() => onEvidence({
+            metric: setups.metric, bucket: (focus?.metric === setups.metric ? focus.name : s0.callout),
+            claim: `Rounds whose first Operator shot came from ${focus?.metric === setups.metric ? focus.name : s0.callout}.`,
+            supportingLabel: focus?.metric === setups.metric ? focus.name : s0.callout,
+            contraryLabel: 'Somewhere else',
+          })} />
+        </section>
+      )}
+      {setups && !s0 && setups.warnings.length === 0 && side && (
+        <section>
+          <h3>Where they play it</h3>
+          <p className="claim">They never fired an Operator on this map and side in these games.</p>
+        </section>
+      )}
+
+      {d0 && (
+        <section>
+          <h3>Where it dies</h3>
+          <p className="claim">
+            Their Operator player dies most at <b>{d0.callout}</b>: <b>{d0.rate.k} of {d0.rate.n}</b> deaths
+            {d0.from_[0] && <>, usually to someone at {d0.from_[0].callout}</>}.
+          </p>
+          <Evidence r={d0.rate} unit="Operator-holder deaths" />
+          {deaths.value.first_death?.n > 0 && (
+            <p className="aside">The holder is the round’s first death in {deaths.value.first_death.k} of {deaths.value.first_death.n} of these.</p>
+          )}
+          <ul className="spots">
+            {deaths.breakdown.slice(0, 5).map((b) => (
+              <Spot key={b.callout} b={b} focus={focus} metric={deaths.metric} onFocus={onFocus}
+                    detail={`${b.from_[0] ? `from ${b.from_[0].callout}, ` : ''}${(b.weapons as { weapon: string }[]).map((w) => cap(w.weapon)).join(' / ')}, ~${Math.round(b.median_t)}s`} />
+            ))}
+          </ul>
+          <p className="hint">Where a counter-play pays off. Click a callout to show those rounds on the map.</p>
+          <ShowRounds n={deaths.evidence_counts.supporting} onClick={() => onEvidence({
+            metric: deaths.metric, bucket: (focus?.metric === deaths.metric ? focus.name : d0.callout),
+            claim: `Rounds where the Operator player died at ${focus?.metric === deaths.metric ? focus.name : d0.callout}.`,
+            supportingLabel: focus?.metric === deaths.metric ? focus.name : d0.callout,
+            contraryLabel: 'Died elsewhere',
+          })} />
+        </section>
+      )}
       <section>
         <h3>How often they have it</h3>
         <p className="claim">

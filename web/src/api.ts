@@ -19,6 +19,7 @@ export type Affine = { a: number; b: number; c: number; d: number; e: number; f:
 export type MapMeta = {
   minX: number; minY: number; maxX: number; maxY: number; width: number; height: number; samples: number
   transform: Affine; transform_version: string; image_sha1?: string; source?: 'minimap' | 'outline'
+  callouts?: { name: string; x: number; y: number }[]
   calibration_status: 'validated' | 'needs_review' | 'not_validated'
 }
 export type MetricDef = {
@@ -49,7 +50,8 @@ export type MetricResult = {
 }
 
 export type Tendencies = Record<
-  'op.possession_full_buy' | 'op.holder_share' | 'op.kill_timing' | 'op.opening' | 'op.win_association' | 'op.forwardness',
+  'op.possession_full_buy' | 'op.holder_share' | 'op.kill_timing' | 'op.opening' | 'op.win_association' | 'op.forwardness'
+  | 'op.setups' | 'op.deaths',
   MetricResult
 >
 

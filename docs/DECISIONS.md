@@ -61,3 +61,13 @@ Consequential choices and the evidence behind them. Newest last.
 **Evidence:** GRID positions are native game units, so the community transform applies unchanged. Spike plants land on the minimap floor 98.5–100% of the time on every map, and buy-phase spawns 99.2–100%. With the axes not swapped, plants land on the floor 0–72%. Summit, which failed with the drawn outline, now validates. Kill lines with a clear path on the minimap (≤2 of 60 samples on transparent pixels): 85% of all kills on Lotus, 88% on Ascent and Haven. The rest are mostly boxes and objects that are transparent on the minimap, plus wallbangs.
 
 **Trade-off:** It's Riot artwork via an unofficial host. The images are fetched into git-ignored `cache/` and never committed. Every map is checked against independent landmarks on each build.
+
+## D-010: Findings in callout language: nearest reachable community callout (2026-11-18)
+
+**Decision:** Every engagement position gets the name of its nearest community callout anchor (valorant-api.com `callouts`, 17–28 per map) that it can reach in a straight line on the minimap floor, within 25 m (`engine/callouts.py`). Two metrics use this. `op.setups` gives the callout of each round's first Operator shot, with a league share. `op.deaths` gives where the Operator holder dies, and from where.
+
+**Why:** A coach reads "first Operator shot from A Stairs into A Main, 4 of 24 rounds", not a cloud of lines. The map becomes the evidence for a sentence, not the product.
+
+**Evidence:** 98.9–99.99% of distinct positions per map get a name, with a median 6.6–11.4 m to the anchor. The reachability rule stops a player behind a wall being named after the room on the other side (`test_wall_sends_the_name_to_the_reachable_anchor`).
+
+**Limits:** Anchors are points, not areas, so names near the boundary between two callouts are approximate. The UI says "nearest community callout". The first shot is where the rifle fought, which isn't always where it set up.

@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 
 import duckdb
 
+from engine.callouts import load as load_callouts
 from engine.config import DB_PATH, MAPS_DIR
 from engine.coverage import coverage
 from engine.metrics import REGISTRY, Filters
@@ -28,7 +29,7 @@ _local = threading.local()
 SIDE = Query(None, pattern="^(attacker|defender)$")
 DATE = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 OP_METRICS = ["op.possession_full_buy", "op.holder_share", "op.kill_timing", "op.opening",
-              "op.win_association", "op.forwardness"]
+              "op.win_association", "op.forwardness", "op.setups", "op.deaths"]
 
 
 def con():
@@ -74,6 +75,9 @@ def catalog():
         GROUP BY t.team_id HAVING count(DISTINCT t.game_id) >= 3
         ORDER BY (any_value(t.team_name) ILIKE 'cloud9%') DESC, maps DESC""").fetchall()
     maps = json.loads((MAPS_DIR / "maps.json").read_text())
+    for name, anchors in load_callouts().items():   # community callout anchors, native coordinates
+        if name in maps:
+            maps[name]["callouts"] = anchors
     metrics = [asdict(d) for d, _ in REGISTRY.values()]
     return envelope(dict(
         teams=[dict(team_id=a, name=b, rounds=c, maps=d, op_rounds=e, last_played=f_,
@@ -137,7 +141,7 @@ def evidence(metric: str, team_id: str, map: str | None = None, side: str | None
     d, fn = REGISTRY[metric]
     res = fn(con(), f)
     keys = res.supporting if which == "supporting" else res.contrary
-    if bucket and metric == "op.kill_timing":
+    if bucket and any("round_keys" in b for b in res.breakdown):  # one bar / callout of a breakdown
         in_bucket = next((b["round_keys"] for b in res.breakdown if b["bucket"] == bucket), [])
         all_rounds = sorted({k for b in res.breakdown for k in b["round_keys"]})
         keys = in_bucket if which == "supporting" else sorted(set(all_rounds) - set(in_bucket))
@@ -185,8 +189,14 @@ def round_context(round_key: str):
 
 
 @app.get("/api/maps/{name}.png")
-def map_png(name: str):
+def map_png(name: str, v: str | None = None):
+    """The map image. `v` is the transform version the client is drawing with: if the map was
+    rebuilt since, refuse rather than pair a new image with an old transform."""
     path = (MAPS_DIR / f"{name}.png").resolve()
     if path.parent != MAPS_DIR.resolve() or not path.exists():
-        raise HTTPException(404, "No outline for that map")
-    return FileResponse(path, media_type="image/png")
+        raise HTTPException(404, "No image for that map")
+    if v is not None:
+        cur = json.loads((MAPS_DIR / "maps.json").read_text()).get(name, {})
+        if v != cur.get("transform_version"):
+            raise HTTPException(409, "Map rebuilt since this page loaded")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "no-cache"})
