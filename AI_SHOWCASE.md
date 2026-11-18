@@ -17,6 +17,8 @@ A running log, written as the work happens. Each entry names the tool, the task,
 | 2026-11-18 | Claude Code | Callout-based findings, VOD links, Operator gamble, site executes | `cd81af1`, `c2de0a9`, `e5a351d` |
 | 2026-11-18 | Claude Code | PyCharm run configurations, AGENTS.md for Junie/Air | `2d4b96f` |
 | 2026-11-18 | PyCharm | Clean project venv exposed missing Pillow/scipy in requirements.txt; fixed | `5679dcd` |
-| 2026-11-18 | Junie | Round win-probability model: features, series split, gradient boosting vs logistic baseline, calibration report, tests, run configuration | _this commit_ |
-| 2026-11-18 | Claude Code (review of Junie) | Found label leakage from post-round kills, a slow per-round loop, dead SQL, and a split test that tested scikit-learn instead of our code; sent back to Junie as a follow-up task | pending |
-| 2026-11-18 | Claude Code | Utility view: setup heatmaps with aim ticks, callout findings, ability filters | _this commit_ |
+| 2026-11-18 | Junie | Round win-probability model: features, series split, gradient boosting vs logistic baseline, calibration report, tests, run configuration | `0096f50` |
+| 2026-11-18 | Claude Code (review of Junie) | Found label leakage from post-round kills, a slow per-round loop, dead SQL, and a split test that tested scikit-learn instead of our code; sent back to Junie as a follow-up task | `0096f50` (issues listed) |
+| 2026-11-18 | Claude Code | Utility view: setup heatmaps with aim ticks, callout findings, ability filters | `88034bc` |
+| 2026-11-18 | Junie | Review fixes: post-round kills no longer leak the label (test log loss 0.3757 → 0.3794, the expected small drop), linear row building, dead SQL removed, split moved into a tested function, calibration shows mean predicted vs actual | _this commit_ |
+| 2026-11-18 | Claude Code (second review) | Retrained independently: report reproduces exactly; 58 tests pass. Two test-quality issues left for the next Junie task | _this commit_ |
