@@ -6,7 +6,6 @@ import pickle
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss, brier_score_loss
-from sklearn.model_selection import train_test_split
 import os
 
 from engine.config import DB_PATH, V2_DIR
@@ -19,6 +18,41 @@ def split_by_series(df, seed=42):
     train_series, test_val_series = train_test_split(series_ids, test_size=0.30, random_state=seed)
     val_series, test_series = train_test_split(test_val_series, test_size=0.50, random_state=seed)
     return train_series, val_series, test_series
+
+FEATURES = [
+    'seconds_since_buy_phase_end', 'planted', 'seconds_since_plant',
+    'attackers_alive', 'defenders_alive', 'att_loadout_value', 'def_loadout_value',
+    'att_has_op', 'def_has_op'
+]
+BASELINE_FEATURES = ['attackers_alive', 'defenders_alive', 'planted']
+
+def fit_models(train_df):
+    X_train = train_df[FEATURES]
+    y_train = train_df['label']
+    
+    baseline = LogisticRegression(random_state=42)
+    baseline.fit(X_train[BASELINE_FEATURES], y_train)
+    
+    model = HistGradientBoostingClassifier(random_state=42)
+    model.fit(X_train, y_train)
+    
+    return model, baseline
+
+def load_model(name="winprob_hgb.pkl"):
+    path = MODEL_DIR / name
+    if not path.exists():
+        return None
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+def predict_wp(model, states_df):
+    """P(attackers win) for a DataFrame with the existing feature columns."""
+    # Handle cases where model might be the baseline (using fewer features)
+    if isinstance(model, LogisticRegression):
+        X = states_df[BASELINE_FEATURES]
+    else:
+        X = states_df[FEATURES]
+    return model.predict_proba(X)[:, 1]
 
 def get_training_data(db_path=DB_PATH):
     con = duckdb.connect(str(db_path), read_only=True)
@@ -117,29 +151,9 @@ def train_model():
     train_series, val_series, test_series = split_by_series(df)
     
     train_df = df[df['series_id'].isin(train_series)]
-    val_df = df[df['series_id'].isin(val_series)]
     test_df = df[df['series_id'].isin(test_series)]
     
-    features = [
-        'seconds_since_buy_phase_end', 'planted', 'seconds_since_plant',
-        'attackers_alive', 'defenders_alive', 'att_loadout_value', 'def_loadout_value',
-        'att_has_op', 'def_has_op'
-    ]
-    
-    X_train = train_df[features]
-    y_train = train_df['label']
-    X_val = val_df[features]
-    y_val = val_df['label']
-    X_test = test_df[features]
-    y_test = test_df['label']
-    
-    # Models
-    baseline = LogisticRegression(random_state=42)
-    baseline_features = ['attackers_alive', 'defenders_alive', 'planted']
-    baseline.fit(X_train[baseline_features], y_train)
-    
-    model = HistGradientBoostingClassifier(random_state=42)
-    model.fit(X_train, y_train)
+    model, baseline = fit_models(train_df)
     
     # Save model
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -149,8 +163,9 @@ def train_model():
         pickle.dump(baseline, f)
         
     # Evaluation
-    def evaluate(m, X, y, feat):
-        probs = m.predict_proba(X[feat])[:, 1]
+    def evaluate(m, df):
+        probs = predict_wp(m, df)
+        y = df['label']
         loss = log_loss(y, probs)
         brier = brier_score_loss(y, probs)
         
@@ -169,8 +184,8 @@ def train_model():
                 calibration.append((prob_bins[i], prob_bins[i+1], np.nan, np.nan, 0))
         return loss, brier, calibration
 
-    b_loss, b_brier, b_cal = evaluate(baseline, X_test, y_test, baseline_features)
-    m_loss, m_brier, m_cal = evaluate(model, X_test, y_test, features)
+    b_loss, b_brier, b_cal = evaluate(baseline, test_df)
+    m_loss, m_brier, m_cal = evaluate(model, test_df)
     
     # Write results to docs/MODEL_WINPROB.md using absolute path
     from engine.config import ROOT

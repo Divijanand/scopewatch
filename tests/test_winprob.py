@@ -91,30 +91,20 @@ def test_feature_building():
 
 def test_model_ranking():
     # Test that model ranks 5v1 > 1v5
-    # We need a trained model for this. Let's train a tiny one.
-    from sklearn.ensemble import HistGradientBoostingClassifier
-    
-    features = [
-        'seconds_since_buy_phase_end', 'planted', 'seconds_since_plant',
-        'attackers_alive', 'defenders_alive', 'att_loadout_value', 'def_loadout_value',
-        'att_has_op', 'def_has_op'
-    ]
+    features = winprob.FEATURES
     
     X = pd.DataFrame([
         [10, False, 0, 5, 1, 20000, 20000, False, False],
         [10, False, 0, 1, 5, 20000, 20000, False, False],
     ] * 50, columns=features)
-    y = [1, 0] * 50
+    X['label'] = [1, 0] * 50
     
-    model = HistGradientBoostingClassifier(random_state=42, min_samples_leaf=1)
-    model.fit(X, y)
+    model, baseline = winprob.fit_models(X)
     
     # Predict on the same or similar
-    probs = model.predict_proba(X.iloc[:2])[:, 1]
+    probs = winprob.predict_wp(model, X.iloc[:2])
     assert probs[0] > probs[1] # 5v1 should have higher win prob than 1v5
-
-def test_no_data_in_repo():
-    # Verify git status doesn't show data files or models (though .gitignore should handle it)
-    # This is more of a manual check instruction but we can check if files exist in unexpected places
-    # Not a typical pytest but useful
-    pass
+    
+    # Test baseline too
+    probs_b = winprob.predict_wp(baseline, X.iloc[:2])
+    assert probs_b[0] > probs_b[1]
