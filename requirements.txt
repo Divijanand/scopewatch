@@ -9,3 +9,4 @@ uvicorn[standard]>=0.29
 pytest>=8
 scipy>=1.11
 Pillow>=10
+scikit-learn
