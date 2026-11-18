@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Scopewatch (API + web)" type="CompoundRunConfigurationType">
+    <toRun name="API server" type="PythonConfigurationType" />
+    <toRun name="Web dev server" type="js.build_tools.npm" />
+    <method v="2" />
+  </configuration>
+</component>

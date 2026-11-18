@@ -59,7 +59,18 @@ Match data is provided by GRID and is © GRID eSports GmbH and Riot Games, Inc. 
 
 ## Built with JetBrains
 
-_To fill in: which JetBrains IDE, Junie and Air features were used, and for what._
+Open the repo folder in **PyCharm** (2025.3 or later). The project ships with shared run configurations in `.idea/runConfigurations/`:
+
+| Run configuration | What it does |
+|---|---|
+| Scopewatch (API + web) | Starts the API and the web app together |
+| API server / Web dev server | Each half on its own |
+| Tests | The full pytest suite |
+| Ingest GRID data, Build analytical store, Fetch minimaps, Build maps | The data pipeline, in order |
+
+Coding agents (Junie, JetBrains Air) follow [AGENTS.md](AGENTS.md) and [.junie/guidelines.md](.junie/guidelines.md): the data-license rules, the test and doc checklist, and the project layout.
+
+_How JetBrains tools were used on each feature is logged in [AI_SHOWCASE.md](AI_SHOWCASE.md) as the work happens._
 
 ## License
 
