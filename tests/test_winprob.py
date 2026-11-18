@@ -7,6 +7,54 @@ from engine.config import DB_PATH
 import pickle
 import os
 
+def test_series_split():
+    # Create dummy data with multiple series
+    rows = []
+    for s in range(100):
+        rows.append({'series_id': f'S{s:03d}', 'label': 0})
+    df = pd.DataFrame(rows)
+    
+    train, val, test = winprob.split_by_series(df, seed=42)
+    
+    # Proportions roughly 70/15/15
+    assert len(train) == 70
+    assert len(val) == 15
+    assert len(test) == 15
+    
+    # No series in two splits
+    assert len(set(train) & set(val)) == 0
+    assert len(set(train) & set(test)) == 0
+    assert len(set(val) & set(test)) == 0
+    
+    # Test stability
+    train2, val2, test2 = winprob.split_by_series(df, seed=42)
+    assert train == train2
+    assert val == val2
+    assert test == test2
+
+def test_post_round_kill_excluded():
+    con = duckdb.connect(":memory:")
+    con.execute("CREATE TABLE rounds (round_key TEXT, series_id TEXT, winner_side TEXT)")
+    con.execute("CREATE TABLE team_rounds (round_key TEXT, side TEXT, team_loadout INTEGER)")
+    con.execute("CREATE TABLE engagements (round_key TEXT, t_round DOUBLE, vic_side TEXT, vic_id TEXT, kind TEXT, phase TEXT)")
+    con.execute("CREATE TABLE objectives (round_key TEXT, t_round DOUBLE, kind TEXT)")
+    con.execute("CREATE TABLE player_rounds (round_key TEXT, player_id TEXT, team_id TEXT, side TEXT, has_op BOOLEAN)")
+    
+    con.execute("INSERT INTO rounds VALUES ('G1:1', 'S1', 'attacker')")
+    con.execute("INSERT INTO team_rounds VALUES ('G1:1', 'attacker', 20000), ('G1:1', 'defender', 20000)")
+    # A kill in post_round
+    con.execute("INSERT INTO engagements (round_key, t_round, vic_side, vic_id, kind, phase) VALUES ('G1:1', 100.0, 'defender', 'P6', 'kill', 'post_round')")
+    
+    original_connect = duckdb.connect
+    duckdb.connect = lambda *args, **kwargs: con
+    try:
+        df = winprob.get_training_data()
+    finally:
+        duckdb.connect = original_connect
+
+    # Should have no training rows because the only event is in post_round
+    assert len(df) == 0
+
 def test_feature_building():
     # Create a small synthetic dataset in a temporary DuckDB
     con = duckdb.connect(":memory:")
@@ -14,14 +62,14 @@ def test_feature_building():
     # Minimal schema for what get_training_data uses
     con.execute("CREATE TABLE rounds (round_key TEXT, series_id TEXT, winner_side TEXT)")
     con.execute("CREATE TABLE team_rounds (round_key TEXT, side TEXT, team_loadout INTEGER)")
-    con.execute("CREATE TABLE engagements (round_key TEXT, t_round DOUBLE, vic_side TEXT, vic_id TEXT, kind TEXT)")
+    con.execute("CREATE TABLE engagements (round_key TEXT, t_round DOUBLE, vic_side TEXT, vic_id TEXT, kind TEXT, phase TEXT)")
     con.execute("CREATE TABLE objectives (round_key TEXT, t_round DOUBLE, kind TEXT)")
     con.execute("CREATE TABLE player_rounds (round_key TEXT, player_id TEXT, team_id TEXT, side TEXT, has_op BOOLEAN)")
     
-    # Round 1: Attacker wins, 1 kill
+    # Round 1: Attacker wins, 1 kill in pre_plant
     con.execute("INSERT INTO rounds VALUES ('G1:1', 'S1', 'attacker')")
     con.execute("INSERT INTO team_rounds VALUES ('G1:1', 'attacker', 20000), ('G1:1', 'defender', 20000)")
-    con.execute("INSERT INTO engagements (round_key, t_round, vic_side, vic_id, kind) VALUES ('G1:1', 10.0, 'defender', 'P6', 'kill')")
+    con.execute("INSERT INTO engagements (round_key, t_round, vic_side, vic_id, kind, phase) VALUES ('G1:1', 10.0, 'defender', 'P6', 'kill', 'pre_plant')")
     con.execute("INSERT INTO player_rounds VALUES ('G1:1', 'P1', 'T1', 'attacker', false)")
 
     # Call the function (I'll need to monkeypatch it or pass the connection)
@@ -40,28 +88,6 @@ def test_feature_building():
     assert row['attackers_alive'] == 5
     assert row['defenders_alive'] == 4
     assert row['label'] == 1
-
-def test_series_split():
-    # Create dummy data with multiple series
-    rows = []
-    for s in range(100):
-        rows.append({'series_id': f'S{s}', 'label': 0, 'attackers_alive': 5, 'defenders_alive': 5,
-                     'seconds_since_buy_phase_end': 10, 'planted': False, 'seconds_since_plant': 0,
-                     'att_loadout_value': 20000, 'def_loadout_value': 20000, 'att_has_op': False, 'def_has_op': False})
-    df = pd.DataFrame(rows)
-    
-    # Mocking train_model's internal behavior or just testing the split logic
-    series_ids = list(df['series_id'].unique())
-    from sklearn.model_selection import train_test_split
-    train_series, test_val_series = train_test_split(series_ids, test_size=0.30, random_state=42)
-    val_series, test_series = train_test_split(test_val_series, test_size=0.50, random_state=42)
-    
-    assert len(set(train_series) & set(val_series)) == 0
-    assert len(set(train_series) & set(test_series)) == 0
-    assert len(set(val_series) & set(test_series)) == 0
-    assert len(train_series) == 70
-    assert len(val_series) == 15
-    assert len(test_series) == 15
 
 def test_model_ranking():
     # Test that model ranks 5v1 > 1v5

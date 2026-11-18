@@ -13,96 +13,51 @@ from engine.config import DB_PATH, V2_DIR
 
 MODEL_DIR = V2_DIR / "models"
 
+def split_by_series(df, seed=42):
+    series_ids = sorted(df['series_id'].unique())
+    from sklearn.model_selection import train_test_split
+    train_series, test_val_series = train_test_split(series_ids, test_size=0.30, random_state=seed)
+    val_series, test_series = train_test_split(test_val_series, test_size=0.50, random_state=seed)
+    return train_series, val_series, test_series
+
 def get_training_data(db_path=DB_PATH):
     con = duckdb.connect(str(db_path), read_only=True)
     
-    # We need one row per kill or plant event.
-    # Kill events from engagements table where kind='kill'
-    # Plant events from objectives table where kind='plant'
-    
-    # Join with rounds and team_rounds to get context.
-    # attacker side is always identified in team_rounds.
-    
     # 1. Kill events
-    kills_query = """
-    SELECT 
-        e.series_id,
-        e.game_id,
-        e.round_no,
-        e.round_key,
-        e.t_round as seconds_since_buy_phase_end,
-        (e.phase = 'post_plant') as planted,
-        CASE WHEN e.phase = 'post_plant' THEN e.t_plant ELSE 0 END as seconds_since_plant,
-        r.winner_side = 'attacker' as attackers_won,
-        -- Counts alive: 5 minus those who died before or at this event on each side
-        -- We need to calculate alive counts. 
-        -- Easier to do with a subquery or window function.
-    FROM engagements e
-    JOIN rounds r ON e.round_key = r.round_key
-    WHERE e.kind = 'kill' AND e.phase IN ('pre_plant', 'post_plant')
-    """
-    
-    # Actually, calculating alive counts on the fly in SQL is better.
-    
-    sql = """
-    WITH events AS (
-        -- Kill events
-        SELECT 
-            series_id, game_id, round_no, round_key, t_round, t_plant, phase, 'kill' as event_type, seq
-        FROM engagements
+    # Only pre_plant and post_plant
+    all_kills = con.execute("""
+        SELECT round_key, t_round, vic_side, vic_id 
+        FROM engagements 
         WHERE kind = 'kill' AND phase IN ('pre_plant', 'post_plant')
-        
-        UNION ALL
-        
-        -- Plant events
-        SELECT 
-            series_id, game_id, round_no, round_key, t_round, 0.0 as t_plant, 'post_plant' as phase, 'plant' as event_type, 999999 as seq
-        FROM objectives
-        WHERE kind = 'plant'
-    ),
-    event_state AS (
-        SELECT 
-            ev.*,
-            r.winner_side = 'attacker' as attackers_won,
-            tr_att.team_loadout as att_loadout,
-            tr_def.team_loadout as def_loadout,
-            tr_att.side as att_side_name, -- 'attacker'
-            -- To get alive counts, we need to know who died.
-            -- This is tricky in a single query without a lot of joins.
-        FROM events ev
-        JOIN rounds r ON ev.round_key = r.round_key
-        JOIN team_rounds tr_att ON ev.round_key = tr_att.round_key AND tr_att.side = 'attacker'
-        JOIN team_rounds tr_def ON ev.round_key = tr_def.round_key AND tr_def.side = 'defender'
-    )
-    SELECT * FROM event_state
-    """
-    # I'll pull the raw events and rounds/kills and do the state calculation in Python for clarity if SQL gets too hairy.
-    # Actually, the requirement says "state just after it".
+        ORDER BY round_key, t_round
+    """).df()
     
-    # Let's get all kills in the round to calculate alive counts.
-    all_kills = con.execute("SELECT round_key, t_round, vic_side, vic_id FROM engagements WHERE kind = 'kill'").df()
-    plants = con.execute("SELECT round_key, t_round FROM objectives WHERE kind = 'plant'").df()
+    plants = con.execute("SELECT round_key, t_round FROM objectives WHERE kind = 'plant' ORDER BY round_key, t_round").df()
+    
     rounds = con.execute("""
         SELECT r.round_key, r.series_id, r.winner_side, 
                tra.team_loadout as att_loadout, trd.team_loadout as def_loadout
         FROM rounds r
         JOIN team_rounds tra ON r.round_key = tra.round_key AND tra.side = 'attacker'
         JOIN team_rounds trd ON r.round_key = trd.round_key AND trd.side = 'defender'
+        ORDER BY r.round_key
     """).df()
     
-    # We also need who has Op/Outlaw at start of round.
-    # team_rounds has n_op, but we also need to track if they are alive.
     player_ops = con.execute("SELECT round_key, player_id, team_id, side, has_op FROM player_rounds WHERE has_op = true").df()
 
     con.close()
     
-    # Building rows in Python
+    # Group kills, plants, and ops by round_key for linear processing
+    kills_by_round = {k: g for k, g in all_kills.groupby('round_key')}
+    plants_by_round = {k: g for k, g in plants.groupby('round_key')}
+    ops_by_round = {k: g for k, g in player_ops.groupby('round_key')}
+    
     rows = []
     
     for r in rounds.itertuples():
-        r_kills = all_kills[all_kills['round_key'] == r.round_key].sort_values('t_round')
-        r_plants = plants[plants['round_key'] == r.round_key]
-        r_ops = player_ops[player_ops['round_key'] == r.round_key]
+        r_kills = kills_by_round.get(r.round_key, pd.DataFrame(columns=['t_round', 'vic_side', 'vic_id']))
+        r_plants = plants_by_round.get(r.round_key, pd.DataFrame(columns=['t_round']))
+        r_ops = ops_by_round.get(r.round_key, pd.DataFrame(columns=['side', 'player_id']))
         
         # Initial state
         att_alive = 5
@@ -115,11 +70,9 @@ def get_training_data(db_path=DB_PATH):
         for k in r_kills.itertuples():
             events.append(('kill', k.t_round, k))
         for p in r_plants.itertuples():
-            # requirement: "state just after it"
-            # If multiple events at same t, kills happen before plant in GRID typically,
-            # but we want to be stable.
             events.append(('plant', p.t_round, p))
         
+        # Sort events by time, then kills before plants if at same time
         events.sort(key=lambda x: (x[1], 0 if x[0] == 'kill' else 1))
         
         is_planted = False
@@ -161,10 +114,7 @@ def train_model():
         print("No training data found.")
         return
 
-    # Split by series_id
-    series_ids = list(df['series_id'].unique())
-    train_series, test_val_series = train_test_split(series_ids, test_size=0.30, random_state=42)
-    val_series, test_series = train_test_split(test_val_series, test_size=0.50, random_state=42)
+    train_series, val_series, test_series = split_by_series(df)
     
     train_df = df[df['series_id'].isin(train_series)]
     val_df = df[df['series_id'].isin(val_series)]
@@ -212,33 +162,38 @@ def train_model():
             mask = bin_indices == i
             if mask.any():
                 actual = y[mask].mean()
+                mean_pred = probs[mask].mean()
                 count = mask.sum()
-                calibration.append((prob_bins[i], prob_bins[i+1], actual, count))
+                calibration.append((prob_bins[i], prob_bins[i+1], mean_pred, actual, count))
             else:
-                calibration.append((prob_bins[i], prob_bins[i+1], np.nan, 0))
+                calibration.append((prob_bins[i], prob_bins[i+1], np.nan, np.nan, 0))
         return loss, brier, calibration
 
     b_loss, b_brier, b_cal = evaluate(baseline, X_test, y_test, baseline_features)
     m_loss, m_brier, m_cal = evaluate(model, X_test, y_test, features)
     
-    # Write results to docs/MODEL_WINPROB.md
-    with open("docs/MODEL_WINPROB.md", "w") as f:
+    # Write results to docs/MODEL_WINPROB.md using absolute path
+    from engine.config import ROOT
+    report_path = ROOT / "docs" / "MODEL_WINPROB.md"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(report_path, "w") as f:
         f.write("# Win-Probability Model Results\n\n")
         f.write("## Baseline (Logistic Regression on alive counts + planted)\n")
         f.write(f"- Log loss: {b_loss:.4f}\n")
         f.write(f"- Brier score: {b_brier:.4f}\n\n")
-        f.write("| Bin | Actual Win Prob | Count |\n")
-        f.write("|-----|-----------------|-------|\n")
-        for low, high, actual, count in b_cal:
-            f.write(f"| {low:.1f}-{high:.1f} | {actual:.4f} | {count} |\n")
+        f.write("| Bin | Mean Pred | Actual Win Prob | Count |\n")
+        f.write("|-----|-----------|-----------------|-------|\n")
+        for low, high, mean_pred, actual, count in b_cal:
+            f.write(f"| {low:.1f}-{high:.1f} | {mean_pred:.4f} | {actual:.4f} | {count} |\n")
             
         f.write("\n## HistGradientBoostingClassifier\n")
         f.write(f"- Log loss: {m_loss:.4f}\n")
         f.write(f"- Brier score: {m_brier:.4f}\n\n")
-        f.write("| Bin | Actual Win Prob | Count |\n")
-        f.write("|-----|-----------------|-------|\n")
-        for low, high, actual, count in m_cal:
-            f.write(f"| {low:.1f}-{high:.1f} | {actual:.4f} | {count} |\n")
+        f.write("| Bin | Mean Pred | Actual Win Prob | Count |\n")
+        f.write("|-----|-----------|-----------------|-------|\n")
+        for low, high, mean_pred, actual, count in m_cal:
+            f.write(f"| {low:.1f}-{high:.1f} | {mean_pred:.4f} | {actual:.4f} | {count} |\n")
 
 if __name__ == "__main__":
     train_model()
