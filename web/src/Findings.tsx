@@ -63,6 +63,23 @@ function Spot({ b, focus, metric, onFocus, detail }: {
   )
 }
 
+const ability = (a: string) => a.split('-').map(cap).join(' ')
+const frac = (r: Rate | null | undefined) => (r && r.n ? `${r.k} of ${r.n}` : '–')
+
+/** One group of rounds in a breakdown; clicking opens exactly those rounds. */
+function BucketRow({ b, detail, onOpen }: { b: Record<string, any> & { rate: Rate }; detail: string; onOpen: () => void }) {
+  return (
+    <li>
+      <button onClick={onOpen} disabled={!b.rate.k} title={b.rate.k ? 'Show these rounds' : undefined}>
+        <span className="where">{b.label}</span>
+        <span className="detail">{detail}</span>
+        <Bar r={b.rate} />
+        <span className="num">{b.rate.k}</span>
+      </button>
+    </li>
+  )
+}
+
 type Props = {
   t: Tendencies
   focus: Focus | null
@@ -87,6 +104,15 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const deaths = t['op.deaths']
   const s0 = setups?.breakdown[0]
   const d0 = deaths?.breakdown[0]
+  const gamble = t['op.gamble']
+  const esc = t['op.escapes']
+  const broke = t['op.how_it_dies']
+  const openBucket = (m: typeof gamble, b: Record<string, any>, claim: string) => onEvidence({
+    metric: m.metric, bucket: b.bucket, claim, supportingLabel: `${b.label} (${b.rate.k})`, contraryLabel: 'The rest',
+  })
+  const gLeague: Rate | null = gamble?.value.league_lost ?? null
+  const moved = esc?.breakdown.find((b) => b.bucket === 'moved')
+  const stayed = esc?.breakdown.find((b) => b.bucket === 'stayed')
   const sLeague: Rate | null = s0?.league ?? null
   const sCompare = s0 && sLeague?.p != null && s0.rate.p != null
     ? s0.rate.p > sLeague.p * 1.5 ? 'far more often than' : s0.rate.p < sLeague.p / 1.5 ? 'less often than' : 'about as often as'
@@ -102,6 +128,90 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
 
   return (
     <div className="findings">
+      {gamble?.rate && gamble.rate.n > 0 && (
+        <section>
+          <h3>What the Operator buys them</h3>
+          <p className="claim">
+            They lose the Operator without getting an Operator kill in <b>{pct(gamble.rate)}</b> of their Operator rounds.
+          </p>
+          <Evidence r={gamble.rate} unit="Operator rounds" />
+          {gLeague?.p != null && (
+            <p className="aside">
+              Every team on this map and side: {pct(gLeague)}.{' '}
+              {gamble.rate.p != null && (gamble.rate.p > gLeague.p * 1.25
+                ? 'Their Operator is a worse gamble than most.'
+                : gamble.rate.p < gLeague.p / 1.25 ? 'Their Operator pays off more often than most.' : 'About the league norm.')}
+            </p>
+          )}
+          <ul className="spots">
+            {gamble.breakdown.map((b) => (
+              <BucketRow key={b.bucket} b={b}
+                         detail={b.won?.n ? `round won ${frac(b.won)}` : ''}
+                         onOpen={() => openBucket(gamble, b, `Operator rounds: ${b.label.toLowerCase()}.`)} />
+            ))}
+          </ul>
+          <p className="hint">
+            {gamble.value.kills_per_round} Operator kills per Operator round; two or more in {frac(gamble.value.multi_kill)}.
+            Click a row to open those rounds.
+          </p>
+        </section>
+      )}
+
+      {esc?.rate && esc.rate.n > 0 && (
+        <section>
+          <h3>Getting away with it</h3>
+          <p className="claim">
+            After an Operator kill, the shooter dies within 5 seconds in <b>{pct(esc.rate)}</b> of cases.
+          </p>
+          <Evidence r={esc.rate} unit="Operator kills" />
+          {moved && stayed && (moved.rate.k > 0) && (
+            <p className="aside">
+              With a dash, teleport or speed ability around the kill they die within 5 s in {frac(moved.punished)};
+              without one, {frac(stayed.punished)}.
+              {moved.abilities?.length > 0 && <> Most used: {(moved.abilities as { ability: string }[]).map((a) => ability(a.ability)).join(', ')}.</>}
+            </p>
+          )}
+          <ul className="spots">
+            {(esc.value.by_agent as { agent: string; kills: number; punished: Rate; moved: Rate }[]).slice(0, 4).map((a) => (
+              <li key={a.agent}>
+                <span className="spot-static">
+                  <span className="where">{cap(a.agent)}</span>
+                  <span className="detail">moved after {frac(a.moved)}, died within 5 s {frac(a.punished)}</span>
+                  <Bar r={a.punished} />
+                  <span className="num">{a.kills}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">Per agent: Operator kills, and how often the shooter was caught after. Movement casts are recorded, not whether they reached cover.</p>
+          <ShowRounds n={esc.evidence_counts.supporting} onClick={() => openBucket(esc, esc.breakdown.find((b) => b.bucket === 'punished')!,
+            'Rounds where the Operator shooter died within 5 s of a kill.')} />
+        </section>
+      )}
+
+      {broke?.rate && broke.rate.n > 0 && (
+        <section>
+          <h3>How it gets broken</h3>
+          <p className="claim">
+            <b>{pct(broke.rate)}</b> of their Operator deaths come right after an enemy flash or stun from close by.
+          </p>
+          <Evidence r={broke.rate} unit="Operator-holder deaths" />
+          <ul className="spots">
+            {broke.breakdown.map((b) => (
+              <BucketRow key={b.bucket} b={b} detail=""
+                         onOpen={() => openBucket(broke, b, `Operator deaths: ${b.label.toLowerCase()}.`)} />
+            ))}
+          </ul>
+          {broke.value.top_utility?.length > 0 && (
+            <p className="aside">Utility seen most before these deaths: {(broke.value.top_utility as { ability: string; k: number }[]).map((a) => `${ability(a.ability)} (${a.k})`).join(', ')}.</p>
+          )}
+          <p className="hint">
+            Counts enemy utility thrown from within 35 m in the 4 s before the death. The feed records where utility was
+            thrown from, not where it landed, so treat this as a lead to check in the VOD.
+          </p>
+        </section>
+      )}
+
       {s0 && (
         <section>
           <h3>Where they play it</h3>

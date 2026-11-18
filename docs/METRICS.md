@@ -29,6 +29,17 @@ Shared definitions:
 - **Caveat:** Holder = had the Operator/Outlaw at buy-phase end; they may have dropped or swapped it.
 - **Caveat:** Callouts are the nearest reachable community callout anchor, an approximation.
 
+## Getting away with it (`op.escapes` v1)
+
+**Question:** After an Operator kill, does the shooter use a movement ability, and do they survive the next 5 seconds?
+
+- **Population:** Operator/Outlaw kills by the team in scope, between buy-phase end and the round result
+- **Numerator:** Kills where the shooter died within 5 s (punished)
+- **Unit:** Operator kills
+- **Caveat:** Movement = dash, teleport or speed ability (Jett, Chamber, Yoru, Veto, Raze, Neon, Omen, Waylay) cast from 1 s before to 4 s after the kill.
+- **Caveat:** A cast is recorded; whether it actually moved the player to safety isn't.
+- **Caveat:** Survival is association, not cause: holders who escape may also have picked safer angles.
+
 ## How far forward (`op.forwardness` v1)
 
 **Question:** How far toward the enemy spawn are their Operator fights, compared with every team on this map?
@@ -39,6 +50,17 @@ Shared definitions:
 - **Caveat:** Needs a single map and side.
 - **Caveat:** Positions come from the event, not continuous tracking.
 
+## What the Operator buys them (`op.gamble` v1)
+
+**Question:** In rounds a player holds the Operator/Outlaw, does it earn kills before it's lost, and does the enemy end up with it?
+
+- **Population:** Player rounds in scope where the player holds an Operator/Outlaw at buy-phase end
+- **Numerator:** Rounds where the holder died without an Operator kill (lost it for nothing)
+- **Unit:** Operator rounds
+- **Caveat:** Kept = the holder was alive at the end of the round, so the rifle carries over.
+- **Caveat:** Picked up by the enemy = an enemy fired an Operator/Outlaw later in the round without holding one at buy-phase end. The feed has no weapon pickup events, so a pickup that never fired isn't seen.
+- **Caveat:** Deaths after the round result count: dying in the post-round still loses the rifle.
+
 ## Who carries it (`op.holder_share` v1)
 
 **Question:** Which player has the Operator/Outlaw in the team's Operator rounds?
@@ -47,6 +69,17 @@ Shared definitions:
 - **Numerator:** Rounds where this player holds it (a round with two holders counts for both)
 - **Unit:** rounds
 - **Caveat:** Shares can sum above 100% when two players hold one in the same round.
+
+## How it gets broken (`op.how_it_dies` v1)
+
+**Question:** When the team's Operator holder dies, was it after enemy flashes or stuns, smokes, or several enemies at once?
+
+- **Population:** Deaths of a player who held an Operator/Outlaw at buy-phase end, between buy-phase end and the round result
+- **Numerator:** Deaths with an enemy flash or stun cast nearby in the 4 s before
+- **Unit:** deaths
+- **Caveat:** 'Nearby' = cast by an enemy standing within 35 m of where the holder died. The feed records where utility was thrown from, not where it landed or who it blinded.
+- **Caveat:** Casts without a reliable position (ability-supplement quality) aren't counted, so utility is undercounted.
+- **Caveat:** Swarmed = two or more different enemies hit the holder in the 3 s before the death.
 
 ## When it fires (`op.kill_timing` v1)
 

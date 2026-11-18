@@ -13,6 +13,10 @@ Each map layer means exactly one thing and has one label. Layers never share a l
 | Event density | Aggregated event positions | "Event density" | Map outline only |
 | Round occurrence | Whether a behaviour happened in an eligible round | "Rounds with …" | In use (all metrics) |
 
+## Ability classes
+
+`engine/abilities.py` sorts the feed's ability ids into movement, flash, stun, smoke and info. The Operator metrics use the classes: a movement cast near a kill is a possible escape, and an enemy flash, stun or smoke cast near a death is possible pressure. These are always "cast near", never "hit".
+
 ## Rules
 
 - **An origin is never an endpoint.** No feed records where an ability lands (S5). A projected aim ray is an illustration and is never labelled as a landing.

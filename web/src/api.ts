@@ -51,7 +51,7 @@ export type MetricResult = {
 
 export type Tendencies = Record<
   'op.possession_full_buy' | 'op.holder_share' | 'op.kill_timing' | 'op.opening' | 'op.win_association' | 'op.forwardness'
-  | 'op.setups' | 'op.deaths',
+  | 'op.setups' | 'op.deaths' | 'op.gamble' | 'op.escapes' | 'op.how_it_dies',
   MetricResult
 >
 
@@ -66,10 +66,14 @@ export type Spatial = { layer: string; engagements: Engagement[]; spawns: Record
 export type EvidenceRound = {
   round_key: string; map: string; round_no: number; side: string; economy: string | null; won: boolean | null
   win_type: string; op_players: string[] | null; op_agents: string[] | null; date: string; event: string; opponent: string
+  game_id: string; vod: VodRound | null
 }
+export type VodRound = { url: string; buy_end_s: number | null; synced_at_round: number | null }
+export type VodGame = { game_id: string; url: string | null; syncs: { round_no: number; vod_s: number }[] }
 export type Evidence = { total: number; which: string; rounds: EvidenceRound[] }
 
 export type RoundContext = {
+  game_id: string; vod: VodRound | null
   round: {
     round_key: string; map: string; round_no: number; winner_team_id: string; winner_side: string
     win_type: string; duration_s: number | null; planted: boolean; plant_t: number | null
@@ -82,8 +86,8 @@ export type RoundContext = {
 
 export type Query = { team_id: string; map?: string; side?: string; player_id?: string; since?: string }
 
-async function get<T>(url: string): Promise<Envelope<T>> {
-  const r = await fetch(url)
+async function get<T>(url: string, init?: RequestInit): Promise<Envelope<T>> {
+  const r = await fetch(url, init)
   if (!r.ok) {
     let detail = `${r.status}`
     try { detail = (await r.json()).detail ?? detail } catch { /* not json */ }
@@ -103,7 +107,40 @@ export const api = {
   evidence: (q: Query & { metric: string; which: 'supporting' | 'contrary'; bucket?: string; page?: number }) =>
     get<Evidence>(`/api/evidence?${qs(q)}`),
   round: (key: string) => get<RoundContext>(`/api/rounds/${encodeURIComponent(key)}`),
+  saveVod: (gameId: string, body: { url?: string; round_no?: number; vod_s?: number }) =>
+    get<VodGame>(`/api/vod/${encodeURIComponent(gameId)}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    }),
+  clearVod: (gameId: string) => get<VodGame>(`/api/vod/${encodeURIComponent(gameId)}`, { method: 'DELETE' }),
 }
 
 export const pct = (r: Rate | null | undefined) => (r && r.p != null ? `${Math.round(r.p * 100)}%` : '–')
 export const cap = (s: string | null | undefined) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
+
+/** "1:02:03" or "31:42" */
+export const clock = (s: number) => {
+  const t = Math.max(0, Math.floor(s)); const h = Math.floor(t / 3600); const m = Math.floor((t % 3600) / 60); const sec = t % 60
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`
+}
+
+/** Parse "31:42", "1:02:03" or "1902" into seconds; null if it isn't a time. */
+export const parseClock = (v: string): number | null => {
+  const parts = v.trim().split(':')
+  if (!parts.length || parts.length > 3 || parts.some((p) => !/^\d+$/.test(p))) return null
+  return parts.reduce((acc, p) => acc * 60 + Number(p), 0)
+}
+
+/** A link that opens the VOD at a second, for YouTube and Twitch; other hosts open at the start. */
+export function vodLink(url: string, s: number): { href: string; exact: boolean } {
+  const t = Math.max(0, Math.floor(s))
+  try {
+    const u = new URL(url)
+    const host = u.hostname.replace(/^www\.|^m\./, '')
+    if (host === 'youtube.com' || host === 'youtu.be') { u.searchParams.set('t', `${t}s`); return { href: u.toString(), exact: true } }
+    if (host === 'twitch.tv' && u.pathname.startsWith('/videos/')) {
+      u.searchParams.set('t', `${Math.floor(t / 3600)}h${Math.floor((t % 3600) / 60)}m${t % 60}s`)
+      return { href: u.toString(), exact: true }
+    }
+  } catch { /* not a URL */ }
+  return { href: url, exact: false }
+}

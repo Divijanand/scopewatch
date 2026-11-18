@@ -71,3 +71,24 @@ Consequential choices and the evidence behind them. Newest last.
 **Evidence:** 98.9–99.99% of distinct positions per map get a name, with a median 6.6–11.4 m to the anchor. The reachability rule stops a player behind a wall being named after the room on the other side (`test_wall_sends_the_name_to_the_reachable_anchor`).
 
 **Limits:** Anchors are points, not areas, so names near the boundary between two callouts are approximate. The UI says "nearest community callout". The first shot is where the rifle fought, which isn't always where it set up.
+
+## D-011: VOD links from one analyst sync per map (2026-11-18)
+
+**Decision:** The analyst pastes a VOD link for a map and types the VOD time at which one round's buy phase ends. Every round and every kill in that map then gets a "watch at" link, opening 5 s early (`engine/vod.py`). Edited VODs drift, so the analyst can re-time at any round, and each round uses the nearest earlier sync.
+
+**Why:** Finding the rounds is the slowest part of prep. Each claim already lists its rounds, so this turns the list into a watch list.
+
+**How:** GRID event times are wall clock, so `vod_time = sync + (buy_end[round] − buy_end[sync round])`, and `event = round buy end + t_round`. A live broadcast VOD runs in real time, so one sync holds for the whole map. YouTube and Twitch links open at the second; other hosts show the time to skip to.
+
+**Storage:** Links live in `cache/v2/user.sqlite` (git-ignored), separate from the analytical store: they're the analyst's notes, not GRID data. Only http(s) links are accepted.
+
+## D-012: The Operator as a gamble: payoff, escapes, how it's broken (2026-11-18)
+
+**Decision:** Three metrics (`engine/metrics/gamble.py`):
+- `op.gamble`: per holder round, kept / got a kill then died / died without an Operator kill, with round win rate per outcome and a league share. "Enemy fired it after" means an enemy who had no Operator at buy end fired one after the holder's death.
+- `op.escapes`: after each Operator kill, whether the shooter cast a movement ability from 1 s before to 4 s after, and whether they died within 5 s. Shown per agent.
+- `op.how_it_dies`: holder deaths preceded by an enemy flash or stun, or a smoke, cast within 35 m in the 4 s before; deaths where two or more enemies hit the holder in 3 s; or none of these (a straight duel).
+
+**Why:** An analyst's framing: the Operator is a glass cannon. It pays off only if it earns kills and survives. Mobile agents carry it so they can shoot and leave. It gets broken by utility and coordinated takes.
+
+**Limits:** The feed records casts (who, when, from where, aim), never landings or who was blinded, so utility is "associated with", not "caused". The feed has no weapon pickups, so a stolen Operator is seen only when the enemy fires it. Ability classes are in `engine/abilities.py`.

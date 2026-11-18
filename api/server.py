@@ -13,9 +13,11 @@ from dataclasses import asdict
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 import duckdb
 
+from engine import vod
 from engine.callouts import load as load_callouts
 from engine.config import DB_PATH, MAPS_DIR
 from engine.coverage import coverage
@@ -23,13 +25,14 @@ from engine.metrics import REGISTRY, Filters
 from engine.metrics.operator import ENG_COLS, _op_engagements, spawns as _spawns
 
 app = FastAPI(title="Scopewatch", version="2")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["GET"])
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["GET", "PUT", "DELETE"])
 _local = threading.local()
 
 SIDE = Query(None, pattern="^(attacker|defender)$")
 DATE = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 OP_METRICS = ["op.possession_full_buy", "op.holder_share", "op.kill_timing", "op.opening",
-              "op.win_association", "op.forwardness", "op.setups", "op.deaths"]
+              "op.win_association", "op.forwardness", "op.setups", "op.deaths",
+              "op.gamble", "op.escapes", "op.how_it_dies"]
 
 
 def con():
@@ -156,9 +159,60 @@ def evidence(metric: str, team_id: str, map: str | None = None, side: str | None
         ORDER BY t.started_at DESC, t.round_no""", [team_id, keys]).fetchall()
     cols = ["round_key", "map", "round_no", "side", "economy", "won", "win_type", "op_players", "op_agents",
             "date", "event", "opponent"]
-    page_rows = rows[page * page_size:(page + 1) * page_size]
-    return envelope(dict(total=len(rows), which=which, rounds=[dict(zip(cols, r)) for r in page_rows]), f,
+    page_rows = [dict(zip(cols, r)) for r in rows[page * page_size:(page + 1) * page_size]]
+    for r in page_rows:
+        r["game_id"] = r["round_key"].rsplit(":", 1)[0]
+        r["vod"] = _vod_round(r["game_id"], r["round_no"])
+    return envelope(dict(total=len(rows), which=which, rounds=page_rows), f,
                     definitions=[f"{d.id}@v{d.version}"])
+
+
+# ------------------------------------------------------------------ VOD links (analyst notes, separate SQLite)
+def _buy_ends(game_id: str) -> dict[int, int]:
+    return dict(con().execute("SELECT round_no, freeze_end_ms FROM rounds WHERE game_id = ?", [game_id]).fetchall())
+
+
+def _vod_game(game_id: str):
+    url, syncs = vod.get(game_id)
+    return url, syncs, vod.round_times(_buy_ends(game_id), syncs) if url else {}
+
+
+def _vod_round(game_id: str, round_no: int):
+    url, syncs, times = _vod_game(game_id)
+    if not url:
+        return None
+    t = times.get(round_no)
+    return dict(url=url, buy_end_s=t["buy_end_s"] if t else None, synced_at_round=t["synced_at_round"] if t else None)
+
+
+class VodIn(BaseModel):
+    url: str | None = None
+    round_no: int | None = None
+    vod_s: float | None = None
+
+
+@app.get("/api/vod/{game_id}")
+def vod_get(game_id: str):
+    url, syncs, times = _vod_game(game_id)
+    return envelope(dict(game_id=game_id, url=url, syncs=[dict(round_no=r, vod_s=s) for r, s in syncs],
+                         rounds={str(k): v for k, v in times.items()}))
+
+
+@app.put("/api/vod/{game_id}")
+def vod_put(game_id: str, body: VodIn):
+    if not _buy_ends(game_id):
+        raise HTTPException(404, "Unknown game")
+    try:
+        vod.save(game_id, url=body.url, round_no=body.round_no, vod_s=body.vod_s)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return vod_get(game_id)
+
+
+@app.delete("/api/vod/{game_id}")
+def vod_delete(game_id: str):
+    vod.clear(game_id)
+    return vod_get(game_id)
 
 
 @app.get("/api/rounds/{round_key}")
@@ -179,8 +233,9 @@ def round_context(round_key: str):
                            [round_key]).fetchall()
     obj = con().execute("SELECT kind, t_round, player_id FROM objectives WHERE round_key = ? ORDER BY ts_ms",
                         [round_key]).fetchall()
+    game_id, round_no = round_key.rsplit(":", 1)
     return envelope(dict(
-        round=info,
+        round=info, game_id=game_id, vod=_vod_round(game_id, int(round_no)),
         players=[dict(zip(["team_id", "team_name", "side", "player_id", "name", "agent", "items", "economy"], p))
                  for p in players],
         kills=[dict(zip(["kind", "t_round", "phase", "weapon", "attacker", "attacker_side", "victim", "opening"], e))
