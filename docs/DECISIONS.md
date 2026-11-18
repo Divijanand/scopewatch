@@ -118,3 +118,34 @@ Consequential choices and the evidence behind them. Newest last.
 **Evidence:** Setups are where cast position is most meaningful. 83% of trapwires, 85% of Chamber trademarks and 87% of Vyse Shears are placed in the buy phase, and 100% of placeable casts pass the position-quality policy.
 
 **Limits:** Thrown utility (Omen and Brimstone smokes, flashes, recon) lands somewhere else, and the feed doesn't record where. Those layers say "used from", and the UI says so. Casts after the round result are left out. Lower-rate (1 Hz) positions are drawn dashed.
+
+## D-015: Each utility layer shows the position that means something (2026-11-18)
+
+**Decision:** `util.placements` v2 replaces "everything at the caster's feet" (D-014) with a position per layer:
+- **Setups:** caster position, which is next to the setup.
+- **Mollies and damaging utility:** where the utility **hurt an enemy**, as the median of the hit players' positions from GRID's damage records. Each use is linked to its throw with an as-of join, so the throw position is shown too.
+- **Walls** (Viper, Harbor, Neon, Phoenix): a line from the caster along the aim, named by where it starts and the callout it runs toward. Length isn't measured.
+- **Map-placed smokes** (Omen, Brimstone, Clove, Astra, Harbor Cove, Viper orb): **no position**. Shown as how often and when only.
+- **Flashes and recon:** caster position, labelled "used from".
+
+**Why:** An analyst flagged that smokes looked random, and that a KJ molly "at C Link" made no sense. Both came from drawing every ability where the caster stood. A Brimstone smoke placed from spawn, or a molly thrown 20 m, says nothing about where the utility went.
+
+**Evidence:** 99.9% of Snake Bite damage links to its throw. Median throw-to-hit distance is 20 m for Snake Bite and 11 m for Nanoswarm, so the caster's position was the wrong spot for these.
+
+**Limits:** The damage layer only sees uses that hurt someone. A molly used to deny space that hit nobody is invisible, which is survivorship again, and it's stated on the layer.
+
+## D-016: Every agent's whole kit, and Tour de Force counted as a sniper kill (2026-11-18)
+
+**Decision:** All 111 abilities in the corpus (29 agents) are classified in `engine/abilities.MODE` by what their position means:
+- **placed** (19): where the player stood, next to the setup.
+- **landing** (17): where it hurt an enemy.
+- **direction** (13): a line along the aim.
+- **thrown** (32): where it was used from.
+- **self** (20): the player's own position.
+- **unplaced** (10): timing only.
+
+The Utility view can show one agent's whole kit, each ability drawn by its mode. Denominators are the rounds where the team fielded that agent. Unknown future abilities default to "thrown", so they're never drawn as placed or landed.
+
+**Weaponless kills:** GRID sends 10,976 kills with no weapon. Each takes the weapon of the damage event from the same attacker on the same victim within 50 ms (`engine/weapons.py`, flagged `weapon_inferred`). That fills 10,853 of them: Tour de Force 2,205, Neon's Overdrive 1,490, Jett's Blade Storm 1,355, Showstopper 1,349, Hunter's Fury 1,264, and so on. 123 stay unknown. Headhunter has no damage records under its own name, so it can't be recovered.
+
+**Tour de Force:** counts as a sniper kill in every kill-based Operator metric (timing, opening, forwardness, setups, escapes, gamble kills, executes against an Operator). It is not an item, so an enemy Tour de Force is never a "stolen Operator". Affected metrics moved to version 2.

@@ -114,3 +114,12 @@ def test_wilson_interval_bounds():
     r = Rate.of(0, 5)
     assert r.lo == 0 and 0 < r.hi < 0.6 and r.small_sample
     assert Rate.of(0, 0).p is None
+
+
+def test_ranking_breaks_ties_by_name_not_by_arrival_order():
+    from collections import Counter
+    from engine.metrics.core import ranked
+    a = Counter(["neon", "raze", "raze", "neon", "jett"])
+    b = Counter(["jett", "neon", "raze", "raze", "neon"])   # same counts, different order of arrival
+    assert ranked(a) == ranked(b) == [("neon", 2), ("raze", 2), ("jett", 1)]
+    assert ranked(a, 1) == [("neon", 2)]

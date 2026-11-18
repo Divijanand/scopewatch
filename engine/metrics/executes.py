@@ -9,14 +9,14 @@ import numpy as np
 
 from ..abilities import kind_of
 from ..callouts import Labeller, load as load_callouts
-from .core import Filters, MetricDef, MetricResult, Rate, metric
+from .core import Filters, MetricDef, MetricResult, Rate, metric, ranked
 
 EXEC_WINDOW_MS = 25_000          # utility thrown in the 25 s before the plant counts as the execute
 PACE = [("fast", 0, 35), ("default", 35, 70), ("late", 70, 10_000)]
 MIN_LEAGUE = 20
 
 EXECUTES = MetricDef(
-    id="att.executes", version=1, title="How they hit sites",
+    id="att.executes", version=2, title="How they hit sites",
     question="On attack, which site does the team plant on, how fast, where does first contact happen, "
              "and what utility goes in before the plant?",
     population="The team's attack rounds on one map (buy-phase end to round result)",
@@ -109,7 +109,7 @@ def executes(con, f: Filters) -> MetricResult:
                bool_or(EXISTS (SELECT 1 FROM engagements d WHERE d.round_key = h.round_key AND d.kind = 'kill'
                                AND d.vic_id = h.player_id AND d.phase IN ('pre_plant', 'post_plant'))),
                sum((SELECT count(*) FROM engagements k WHERE k.round_key = h.round_key AND k.kind = 'kill'
-                    AND k.att_id = h.player_id AND k.weapon IN ('operator', 'outlaw')
+                    AND k.att_id = h.player_id AND k.weapon IN ('operator', 'outlaw', 'tour-de-force')
                     AND k.phase IN ('pre_plant', 'post_plant')))
         FROM h GROUP BY 1""", [keys, f.team_id]).fetchall()} if keys else {}
     by_round = {}
@@ -133,7 +133,7 @@ def executes(con, f: Filters) -> MetricResult:
     by_site = {}
     for r, s in planted:
         by_site.setdefault(s, []).append(r)
-    for site, rs in sorted(by_site.items(), key=lambda kv: -len(kv[1])):
+    for site, rs in sorted(by_site.items(), key=lambda kv: (-len(kv[1]), str(kv[0]))):
         k = len(rs)
         util = [by_round.get(r[0], []) for r in rs]
         kinds = [Counter(kind_of(a) for a in u) for u in util]
@@ -146,10 +146,10 @@ def executes(con, f: Filters) -> MetricResult:
             plant_t=round(float(np.median([r[4] for r in rs])), 1),
             entry_t=round(float(np.median([t for t, _ in ent])), 1) if ent else None,
             entry=Rate.of(len(ent), k),
-            entry_callouts=[dict(callout=c, k=v) for c, v in Counter(c for _, c in ent).most_common(3)],
+            entry_callouts=[dict(callout=c, k=v) for c, v in ranked(Counter(c for _, c in ent), 3)],
             pace=[dict(pace=nm, k=sum(1 for r in rs if lo <= r[4] < hi)) for nm, lo, hi in PACE],
             utility_per_round=per_round,
-            abilities=[dict(ability=a, rounds=v) for a, v in ab_rounds.most_common(5)],
+            abilities=[dict(ability=a, rounds=v) for a, v in ranked(ab_rounds, 5)],
             league=Rate.of(league_sites.get(site, 0), league_n) if league_n >= MIN_LEAGUE else None,
             vs_op=dict(rounds=sum(1 for r in rs if r[0] in vs_op),
                        op_kill=Rate.of(sum(1 for r in rs if r[0] in vs_op and vs_op[r[0]][1] > 0),

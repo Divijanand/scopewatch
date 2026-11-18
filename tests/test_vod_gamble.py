@@ -122,3 +122,10 @@ def test_how_it_dies(con):
     assert (r.rate.k, r.rate.n) == (1, 2)
     assert by["blinded"]["round_keys"] == ["G:2"] and by["swarmed"]["round_keys"] == ["G:2"]
     assert by["duel"]["round_keys"] == ["G:3"]                  # the far flash doesn't count
+
+
+def test_an_enemy_tour_de_force_is_not_a_stolen_operator(con):
+    con.execute("UPDATE engagements SET weapon = 'tour-de-force' WHERE event_id = '6'")
+    d, fn = REGISTRY["op.gamble"]
+    by = {b["bucket"]: b for b in fn(con, F).breakdown}
+    assert by["stolen"]["round_keys"] == []

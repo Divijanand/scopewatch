@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections import Counter
 
 from ..abilities import FLASH, MOVEMENT, SMOKE, STUN, sql_list
-from .core import Filters, MetricDef, MetricResult, Rate, metric
-from .operator import OP
+from .core import Filters, MetricDef, MetricResult, Rate, metric, ranked
+from .operator import OP, OP_ITEMS
 
 FIGHT = "('pre_plant', 'post_plant')"
 ESCAPE_BEFORE_MS, ESCAPE_AFTER_MS = 1000, 4000   # movement cast this close to the kill counts as the escape
@@ -22,7 +22,7 @@ def _rounds_of(rows, idx=0):
 
 # ------------------------------------------------------------------ the gamble
 GAMBLE = MetricDef(
-    id="op.gamble", version=1, title="What the Operator buys them",
+    id="op.gamble", version=2, title="What the Operator buys them",
     question="In rounds a player holds the Operator/Outlaw, does it earn kills before it's lost, and does the enemy end up with it?",
     population="Player rounds in scope where the player holds an Operator/Outlaw at buy-phase end",
     numerator="Rounds where the holder died without an Operator kill (lost it for nothing)",
@@ -45,7 +45,7 @@ def _gamble_rows(con, w, p):
                      AND e.round_key IN (SELECT round_key FROM h)),
              s AS (SELECT e.round_key, e.att_team, min(e.ts_ms) ts FROM engagements e
                    LEFT JOIN player_rounds q ON q.round_key = e.round_key AND q.player_id = e.att_id
-                   WHERE e.weapon IN {OP} AND NOT coalesce(q.has_op, FALSE)
+                   WHERE e.weapon IN {OP_ITEMS} AND NOT coalesce(q.has_op, FALSE)
                      AND e.round_key IN (SELECT round_key FROM h) GROUP BY 1, 2)
         SELECT h.round_key, h.player_id, h.player_name, h.agent, d.died_ms,
                (SELECT count(*) FROM k WHERE k.round_key = h.round_key AND k.pid = h.player_id
@@ -91,7 +91,7 @@ def gamble(con, f: Filters) -> MetricResult:
         league = Rate.of(sum(1 for r in lr if r[4] is not None and r[5] == 0), len(lr))
     res.value = dict(league_lost=league,kills_per_round=round(sum(kills) / n, 2) if n else None,
                      multi_kill=Rate.of(sum(1 for k in kills if k >= 2), n),
-                     by_player=[dict(name=nm, rounds=c) for nm, c in Counter(r[2] for r in rows).most_common(3)])
+                     by_player=[dict(name=nm, rounds=c) for nm, c in ranked(Counter(r[2] for r in rows), 3)])
     res.supporting = groups["lost"] and _rounds_of(groups["lost"]) or []
     res.contrary = sorted(set(_rounds_of(rows)) - set(res.supporting))
     res.maps = len({r[0].split(":")[0] for r in rows})
@@ -100,7 +100,7 @@ def gamble(con, f: Filters) -> MetricResult:
 
 # ------------------------------------------------------------------ escapes after the shot
 ESCAPES = MetricDef(
-    id="op.escapes", version=1, title="Getting away with it",
+    id="op.escapes", version=2, title="Getting away with it",
     question="After an Operator kill, does the shooter use a movement ability, and do they survive the next 5 seconds?",
     population="Operator/Outlaw kills by the team in scope, between buy-phase end and the round result",
     numerator="Kills where the shooter died within 5 s (punished)",
@@ -137,7 +137,7 @@ def escapes(con, f: Filters) -> MetricResult:
     res.breakdown = [
         dict(bucket="moved", label="Used a movement ability", rate=Rate.of(len(moved), n),
              punished=Rate.of(sum(1 for r in moved if r[5]), len(moved)),
-             abilities=[dict(ability=a, k=c) for a, c in Counter(r[4] for r in moved).most_common(3)],
+             abilities=[dict(ability=a, k=c) for a, c in ranked(Counter(r[4] for r in moved), 3)],
              round_keys=_rounds_of(moved)),
         dict(bucket="stayed", label="No movement ability", rate=Rate.of(len(still), n),
              punished=Rate.of(sum(1 for r in still if r[5]), len(still)), abilities=[],
@@ -150,7 +150,7 @@ def escapes(con, f: Filters) -> MetricResult:
         by_agent.setdefault(r[2] or "unknown", []).append(r)
     res.value = dict(by_agent=[dict(agent=a, kills=len(rs), punished=Rate.of(sum(1 for r in rs if r[5]), len(rs)),
                                     moved=Rate.of(sum(1 for r in rs if r[4]), len(rs)))
-                               for a, rs in sorted(by_agent.items(), key=lambda kv: -len(kv[1]))])
+                               for a, rs in sorted(by_agent.items(), key=lambda kv: (-len(kv[1]), str(kv[0])))])
     res.supporting = _rounds_of(punished)
     res.contrary = sorted(set(_rounds_of(rows)) - set(res.supporting))
     res.maps = len({r[0].split(":")[0] for r in rows})
@@ -209,7 +209,7 @@ def how_it_dies(con, f: Filters) -> MetricResult:
         dict(bucket="duel", label="None of these: a straight duel", rate=Rate.of(len(duel), n),
              round_keys=_rounds_of(duel)),
     ]
-    res.value = dict(top_utility=[dict(ability=a, k=c) for a, c in util.most_common(4)])
+    res.value = dict(top_utility=[dict(ability=a, k=c) for a, c in ranked(util, 4)])
     res.supporting = _rounds_of(blinded)
     res.contrary = sorted(set(_rounds_of(rows)) - set(res.supporting))
     res.maps = len({r[0].split(":")[0] for r in rows})

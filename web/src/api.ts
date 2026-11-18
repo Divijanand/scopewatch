@@ -72,13 +72,18 @@ export type VodRound = { url: string; buy_end_s: number | null; synced_at_round:
 export type VodGame = { game_id: string; url: string | null; syncs: { round_no: number; vod_s: number }[] }
 export type Evidence = { total: number; which: string; rounds: EvidenceRound[] }
 
-export type UtilityGroup = 'setup' | 'smoke' | 'flash' | 'recon'
+export type UtilityGroup = 'setup' | 'damage' | 'smoke' | 'flash' | 'recon'
+export type AbilityMode = 'placed' | 'landing' | 'direction' | 'thrown' | 'self' | 'unplaced'
+/** One use on the map. `kind` says what x/y mean: cast = where the player stood; landing = where it hurt an
+ *  enemy (fx/fy = where it was thrown from); wall = start of a wall that runs along vx/vy. */
 export type Cast = {
-  round_key: string; ability: string; agent: string | null; player: string | null; t_round: number | null; phase: string
+  round_key: string; ability: string; agent: string | null; player: string | null; t_round: number | null
   x: number; y: number; vx: number | null; vy: number | null; low_rate: boolean; callout: string | null
+  kind: 'cast' | 'landing' | 'wall'; mode: AbilityMode; fx: number | null; fy: number | null
+  from_callout: string | null; toward: string | null
 }
 export type UtilityLayer = {
-  layer: string; group: UtilityGroup; result: MetricResult; casts: Cast[]
+  layer: string; group: UtilityGroup | null; agent: string | null; result: MetricResult; casts: Cast[]
   spawns: Record<string, { x: number; y: number }>
 }
 
@@ -114,8 +119,8 @@ export const api = {
   teamMaps: (id: string) => get<TeamMap[]>(`/api/teams/${id}/maps`),
   tendencies: (q: Query) => get<Tendencies>(`/api/weapons/tendencies?${qs(q)}`),
   spatial: (q: Query) => get<Spatial>(`/api/spatial/operator?${qs(q)}`),
-  utility: (q: Query & { group: UtilityGroup }) => get<UtilityLayer>(`/api/utility?${qs(q)}`),
-  evidence: (q: Query & { metric: string; which: 'supporting' | 'contrary'; bucket?: string; group?: string; page?: number }) =>
+  utility: (q: Query & { group: UtilityGroup; agent?: string }) => get<UtilityLayer>(`/api/utility?${qs(q)}`),
+  evidence: (q: Query & { metric: string; which: 'supporting' | 'contrary'; bucket?: string; group?: string; agent?: string; page?: number }) =>
     get<Evidence>(`/api/evidence?${qs(q)}`),
   round: (key: string) => get<RoundContext>(`/api/rounds/${encodeURIComponent(key)}`),
   saveVod: (gameId: string, body: { url?: string; round_no?: number; vod_s?: number }) =>

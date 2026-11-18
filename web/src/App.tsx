@@ -39,6 +39,8 @@ export default function App() {
   const [group, setGroup] = useState<UtilityGroup>('setup')
   const [util, setUtil] = useState<UtilityLayer | null>(null)
   const [utilFocus, setUtilFocus] = useState<UtilFocus | null>(null)
+  const [utilAgent, setUtilAgent] = useState<string | null>(null)
+  const [agentList, setAgentList] = useState<{ agent: string; rounds: number }[]>([])
   const [tend, setTend] = useState<Tendencies | null>(null)
   const [coverage, setCoverage] = useState<Coverage | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
@@ -84,11 +86,17 @@ export default function App() {
     if (!q || view !== 'utility') return
     setUtilFocus(null)
     setLoading(true)
-    api.utility({ ...q, side: q.side ?? 'defender', group })
-      .then((r) => { setUtil(r.data); setError(null) })
+    api.utility({ ...q, side: q.side ?? 'defender', group, agent: utilAgent ?? undefined })
+      .then((r) => {
+        setUtil(r.data); setError(null)
+        setAgentList((r.data.result.value.agents ?? []) as { agent: string; rounds: number }[])
+      })
       .catch((e) => setError(`Couldn’t load utility: ${e.message}`))
       .finally(() => setLoading(false))
-  }, [q, view, group])
+  }, [q, view, group, utilAgent])
+
+  // a different team, map or side has a different roster: go back to the layer view
+  useEffect(() => { setUtilAgent(null) }, [teamId, map, side])
 
   const team: Team | undefined = catalog?.teams.find((t) => t.team_id === teamId)
   const engagements = useMemo(
@@ -172,11 +180,22 @@ export default function App() {
             {view === 'utility' && (
               <div className="seg" role="group" aria-label="Utility type">
                 {(Object.keys(GROUP_LABEL) as UtilityGroup[]).map((g) => (
-                  <button key={g} aria-pressed={group === g} onClick={() => setGroup(g)}>{GROUP_LABEL[g]}</button>
+                  <button key={g} aria-pressed={!utilAgent && group === g} onClick={() => { setUtilAgent(null); setGroup(g) }}>{GROUP_LABEL[g]}</button>
                 ))}
               </div>
             )}
           </div>
+          {view === 'utility' && agentList.length > 0 && (
+            <div className="agents" role="group" aria-label="Show one agent's whole kit">
+              <span className="agents-label">Or one agent’s whole kit:</span>
+              {agentList.map((a) => (
+                <button key={a.agent} aria-pressed={utilAgent === a.agent}
+                        onClick={() => setUtilAgent(utilAgent === a.agent ? null : a.agent)}>
+                  {cap(a.agent)} <span className="num">{a.rounds}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {view === 'utility' ? (
             <div className={loading ? 'board loading' : 'board'} aria-busy={loading}>

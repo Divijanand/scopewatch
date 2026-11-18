@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import threading
+from functools import lru_cache
 from dataclasses import asdict
 
 from fastapi import FastAPI, HTTPException, Query
@@ -23,7 +24,7 @@ from engine.config import DB_PATH, MAPS_DIR
 from engine.coverage import coverage
 from engine.metrics import REGISTRY, Filters
 from engine.metrics.operator import ENG_COLS, _op_engagements, spawns as _spawns
-from engine.metrics.utility import casts_in_scope, name_positions
+from engine.metrics.utility import agent_kit, layer_items
 
 app = FastAPI(title="Scopewatch", version="2")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["GET", "PUT", "DELETE"])
@@ -31,7 +32,7 @@ _local = threading.local()
 
 SIDE = Query(None, pattern="^(attacker|defender)$")
 DATE = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
-OP_METRICS = ["op.possession_full_buy", "op.holder_share", "op.kill_timing", "op.opening",
+OP_METRICS = ["op.wpa", "op.possession_full_buy", "op.holder_share", "op.kill_timing", "op.opening",
               "op.win_association", "op.forwardness", "op.setups", "op.deaths",
               "op.gamble", "op.escapes", "op.how_it_dies", "att.executes"]
 
@@ -107,6 +108,13 @@ def get_coverage(team_id: str, map: str | None = None, side: str | None = SIDE,
 @app.get("/api/weapons/tendencies")
 def weapon_tendencies(team_id: str, map: str | None = None, side: str | None = SIDE,
                       since: str | None = DATE, until: str | None = DATE, player_id: str | None = None):
+    return _tendencies(team_id, map, side, since, until, player_id)
+
+
+@lru_cache(maxsize=512)
+def _tendencies(team_id, map, side, since, until, player_id):
+    """The data is read-only while the server runs, so a report for the same filters is computed once.
+    Restart the API after rebuilding the store or the WPA files."""
     f = filters(team_id, map, side, since, until, player_id)
     results, defs, warns = {}, [], []
     for mid in OP_METRICS:
@@ -135,20 +143,29 @@ def spatial_operator(team_id: str, map: str, side: str | None = SIDE, since: str
 
 @app.get("/api/utility")
 def utility_layer(team_id: str, map: str, side: str = Query("defender", pattern="^(attacker|defender)$"),
-                  group: str = Query("setup", pattern="^(setup|smoke|flash|recon)$"),
+                  group: str = Query("setup", pattern="^(setup|damage|smoke|flash|recon)$"),
+                  agent: str | None = Query(None, max_length=40),
                   since: str | None = DATE, until: str | None = DATE, player_id: str | None = None,
                   limit: int = Query(4000, le=8000)):
-    """Utility setups (metric) plus the map layer: caster positions and aim, never landing spots."""
+    """Utility metric plus the map layer, for one layer (group) or one agent's whole kit (agent).
+    Each point carries its ability's mode (engine/abilities.MODE), which says what its position means:
+    placed/self/thrown = where the player stood; landing = where it hurt an enemy (fx/fy = the throw);
+    direction = start of a wall or cone along the aim. Unplaced abilities are timing only."""
     f = filters(team_id, map, side, since, until, player_id)
     d, fn = REGISTRY["util.placements"]
-    res = fn(con(), f, group=group)
-    rows = [r for r in casts_in_scope(con(), f, group=group) if r[11] and r[7] is not None]
-    names = name_positions(map, [r[7] for r in rows], [r[8] for r in rows])
-    pts = [dict(round_key=r[0], ability=r[1], agent=r[2], player=r[4], t_round=r[5], phase=r[6],
-                x=r[7], y=r[8], vx=r[9], vy=r[10], low_rate=bool(r[12]), callout=nm)
-           for r, nm in zip(rows, names)]
-    warns = res.warnings + ([f"Showing {limit} of {len(pts)} casts."] if len(pts) > limit else [])
-    return envelope(dict(layer="ability_cast_origin", group=group, result=res.to_dict(evidence_limit=0),
+    kit = agent_kit(con(), agent) if agent else None
+    res = fn(con(), f, group=None if agent else group, agent=agent)
+    items, _, _ = layer_items(con(), f, group=None if agent else group, agent_kit=kit)
+    kind_of_mode = {"landing": "landing", "direction": "wall"}
+    pts = [dict(round_key=it[0], ability=it[1], agent=it[2], player=it[3], t_round=it[4], x=it[5], y=it[6],
+                callout=it[7], mode=it[8]["mode"], kind=kind_of_mode.get(it[8]["mode"], "cast"),
+                low_rate=it[8].get("low_rate", False),
+                vx=it[8].get("vx"), vy=it[8].get("vy"), fx=it[8].get("fx"), fy=it[8].get("fy"),
+                from_callout=it[8].get("from_callout"), toward=it[8].get("toward"))
+           for it in items]
+    warns = res.warnings + ([f"Showing {limit} of {len(pts)} uses."] if len(pts) > limit else [])
+    return envelope(dict(layer="utility_by_ability_mode", group=None if agent else group, agent=agent,
+                         result=res.to_dict(evidence_limit=0),
                          casts=pts[:limit], spawns={k: dict(x=v[0], y=v[1]) for k, v in _spawns(con(), map).items()}),
                     f, warnings=warns, definitions=[f"{d.id}@v{d.version}"])
 
@@ -157,14 +174,18 @@ def utility_layer(team_id: str, map: str, side: str = Query("defender", pattern=
 def evidence(metric: str, team_id: str, map: str | None = None, side: str | None = SIDE,
              since: str | None = DATE, until: str | None = DATE, player_id: str | None = None,
              which: str = Query("supporting", pattern="^(supporting|contrary)$"),
-             bucket: str | None = None, group: str | None = Query(None, pattern="^(setup|smoke|flash|recon)$"),
+             bucket: str | None = None, group: str | None = Query(None, pattern="^(setup|damage|smoke|flash|recon)$"),
+             agent: str | None = Query(None, max_length=40),
              page: int = Query(0, ge=0), page_size: int = Query(25, le=100)):
     """The rounds behind a metric result, newest first, paginated."""
     if metric not in REGISTRY:
         raise HTTPException(404, "Unknown metric")
     f = filters(team_id, map, side, since, until, player_id)
     d, fn = REGISTRY[metric]
-    res = fn(con(), f, group=group) if (metric == "util.placements" and group) else fn(con(), f)
+    if metric == "util.placements" and (group or agent):
+        res = fn(con(), f, group=None if agent else group, agent=agent)
+    else:
+        res = fn(con(), f)
     keys = res.supporting if which == "supporting" else res.contrary
     if bucket and any("round_keys" in b for b in res.breakdown):  # one bar / callout of a breakdown
         in_bucket = next((b["round_keys"] for b in res.breakdown if b["bucket"] == bucket), [])

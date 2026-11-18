@@ -9,10 +9,48 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import numpy as np
 from dataclasses import asdict, dataclass, field
 
 Z95 = 1.96
 SMALL_SAMPLE = 10
+
+def bootstrap_mean(values: list[float], groups: list[str], n=1000, seed=0) -> tuple[float, float]:
+    """Resample whole groups with replacement and return 90% interval (lo, hi)."""
+    if not values:
+        return 0.0, 0.0
+    rng = np.random.default_rng(seed)
+    
+    unique_groups = sorted(list(set(groups)))
+    if not unique_groups:
+        m = float(np.mean(values))
+        return m, m
+        
+    group_indices = {g: [] for g in unique_groups}
+    for i, g in enumerate(groups):
+        group_indices[g].append(i)
+    
+    means = []
+    vals_np = np.array(values)
+    for _ in range(n):
+        resampled_groups = rng.choice(unique_groups, size=len(unique_groups), replace=True)
+        resampled_indices = []
+        for rg in resampled_groups:
+            resampled_indices.extend(group_indices[rg])
+        if not resampled_indices:
+            continue
+        means.append(np.mean(vals_np[resampled_indices]))
+    
+    if not means:
+        m = float(np.mean(values))
+        return m, m
+        
+    return float(np.percentile(means, 5)), float(np.percentile(means, 95))
+
+def ranked(counter, n=None):
+    """Counter.most_common with ties broken by name, so the same data always ranks the same way."""
+    items = sorted(counter.items(), key=lambda kv: (-kv[1], str(kv[0])))
+    return items if n is None else items[:n]
 
 
 @dataclass(frozen=True)

@@ -269,3 +269,19 @@ button, select, input { font: inherit; color: inherit; }
 .chips button .num { color: inherit; opacity: .7; margin-left: 4px; }
 .chips button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
 .map .cast { cursor: crosshair; }
+
+/* smokes without a position: a plain timing table */
+.timing-table { width: 100%; border-collapse: collapse; margin: 10px 0 4px; font-variant-numeric: tabular-nums; }
+.timing-table th, .timing-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); font-size: .92rem; }
+.timing-table thead th { color: var(--ink-3); font-weight: 600; font-size: .82rem; }
+.timing-table tbody th { font-weight: 600; color: var(--ink); }
+.timing-table .agent { color: var(--ink-3); font-weight: 400; margin-left: 4px; }
+
+/* agent picker and per-ability colour key */
+.agents { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -6px 0 18px; }
+.agents-label { color: var(--ink-3); font-size: .88rem; margin-right: 4px; }
+.agents button { font: inherit; font-size: .88rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); cursor: pointer; }
+.agents button[aria-pressed='true'] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.agents button .num { opacity: .65; margin-left: 3px; font-variant-numeric: tabular-nums; }
+.agents button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+.kit-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--ink); margin-right: 4px; vertical-align: 1px; }

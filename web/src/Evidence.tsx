@@ -11,6 +11,7 @@ export type EvidenceRequest = {
   contraryLabel: string
   bucket?: string
   group?: string
+  agent?: string
 }
 
 type Props = { req: EvidenceRequest; q: Query; onClose: () => void }
@@ -32,7 +33,7 @@ export function EvidenceDrawer({ req, q, onClose }: Props) {
   }, [onClose])
   useEffect(() => {
     setEv(null); setError(null)
-    api.evidence({ ...q, metric: req.metric.id, which, bucket: req.bucket, group: req.group, page })
+    api.evidence({ ...q, metric: req.metric.id, which, bucket: req.bucket, group: req.group, agent: req.agent, page })
       .then((r) => setEv(r.data)).catch((e) => setError(e.message))
   }, [q, req, which, page, vodVersion])
 

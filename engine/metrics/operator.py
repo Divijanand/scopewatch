@@ -1,11 +1,16 @@
 """Operator / Outlaw tendency metrics. Possession = item in inventory at buy-phase end."""
 from __future__ import annotations
 
+from collections import Counter
+
 import numpy as np
 
-from .core import Filters, MetricDef, MetricResult, Rate, Unknown, metric
+from .core import Filters, MetricDef, MetricResult, Rate, Unknown, metric, ranked
 
-OP = "('operator', 'outlaw')"
+# weapons a player buys and holds
+OP_ITEMS = "('operator', 'outlaw')"
+# sniper kills: those plus Chamber's ultimate, Tour de Force (its kills get their weapon in engine/weapons.py)
+OP = "('operator', 'outlaw', 'tour-de-force')"
 BUCKETS = [("0-20s", 0, 20), ("20-40s", 20, 40), ("40-60s", 40, 60), ("60s+", 60, 10_000)]
 
 
@@ -67,13 +72,14 @@ def holder_share(con, f: Filters) -> MetricResult:
     n = len(op_rounds)
     pw, pp = f.where("p")
     holders = con.execute(f"""
-        SELECT player_id, any_value(player_name), count(*) k, mode(agent), list(DISTINCT agent),
+        SELECT player_id, any_value(player_name), count(*) k, list(agent), list(DISTINCT agent ORDER BY agent),
                list(round_key)
-        FROM player_rounds p WHERE {pw} AND has_op GROUP BY player_id ORDER BY k DESC""", pp).fetchall()
+        FROM player_rounds p WHERE {pw} AND has_op GROUP BY player_id ORDER BY k DESC, player_id""", pp).fetchall()
     maps, series = _scope(con, f, "AND n_op > 0")
     res = MetricResult(HOLDERS, f, maps=maps, series=series)
-    res.breakdown = [dict(player_id=pid, name=name, agent=agent, agents=agents, rate=Rate.of(k, n))
-                     for pid, name, k, agent, agents, _ in holders]
+    res.breakdown = [dict(player_id=pid, name=name, agent=ranked(Counter(agent_list), 1)[0][0], agents=agents,
+                          rate=Rate.of(k, n))
+                     for pid, name, k, agent_list, agents, _ in holders]
     if holders:
         res.rate = Rate.of(holders[0][2], n)
         res.supporting = list(holders[0][5])
@@ -81,7 +87,8 @@ def holder_share(con, f: Filters) -> MetricResult:
     # possession shift: rounds where the holder isn't that map's main holder
     shift = con.execute(f"""
         WITH r AS (SELECT game_id, round_key, unnest(op_player_ids) pid FROM team_rounds t WHERE {w} AND n_op > 0),
-             m AS (SELECT game_id, mode(pid) main FROM r GROUP BY game_id)
+             c AS (SELECT game_id, pid, count(*) n FROM r GROUP BY 1, 2),
+             m AS (SELECT game_id, pid AS main FROM (SELECT *, row_number() OVER (PARTITION BY game_id ORDER BY n DESC, pid) rn FROM c) WHERE rn = 1)
         SELECT count(*) FILTER (WHERE pid <> main), count(*) FROM r JOIN m USING (game_id)""", p).fetchone()
     res.value["possession_shift"] = Rate.of(shift[0], shift[1])
     return res
@@ -89,12 +96,13 @@ def holder_share(con, f: Filters) -> MetricResult:
 
 # ------------------------------------------------------------------ timing
 TIMING = MetricDef(
-    id="op.kill_timing", version=1, title="When it fires",
+    id="op.kill_timing", version=2, title="When it fires",
     question="When in the round do the team's Operator/Outlaw kills happen?",
     population="Kills by the team with an Operator or Outlaw, after buy-phase end and before the round result",
     numerator="Kills in each window of time since buy-phase end",
     unit="kills",
     caveats=("A kill is when the duel ended, not when the hold started.",
+             "Sniper kills include Chamber's ultimate (Tour de Force).",
              "Windows are an analytical choice (0-20, 20-40, 40-60, 60+ s); short rounds can't reach late windows."),
 )
 
@@ -141,7 +149,7 @@ def kill_timing(con, f: Filters) -> MetricResult:
 
 # ------------------------------------------------------------------ opening duels
 OPENING = MetricDef(
-    id="op.opening", version=1, title="Opening duels",
+    id="op.opening", version=2, title="Opening duels",
     question="In rounds where they have an Operator, how often does it take or lose the round's first kill?",
     population="Team rounds in scope with an Operator/Outlaw holder and a recorded first kill",
     numerator="Rounds whose first kill is by the holder with the rifle (won) / of the holder (lost)",
@@ -160,7 +168,7 @@ def opening(con, f: Filters) -> MetricResult:
                list_contains(op.op_player_ids, fk.vic_id) vic_holder
         FROM op JOIN fk USING (round_key)""", p).fetchall()
     n = len(rows)
-    won = [r[0] for r in rows if r[4] and r[3] in ("operator", "outlaw")]
+    won = [r[0] for r in rows if r[4] and r[3] in ("operator", "outlaw", "tour-de-force")]
     lost = [r[0] for r in rows if r[5]]
     res = MetricResult(OPENING, f, rate=Rate.of(len(won), n), supporting=won,
                        contrary=[r[0] for r in rows if r[0] not in set(won)])
@@ -196,7 +204,7 @@ def win_association(con, f: Filters) -> MetricResult:
 
 # ------------------------------------------------------------------ forwardness
 FORWARD = MetricDef(
-    id="op.forwardness", version=1, title="How far forward",
+    id="op.forwardness", version=2, title="How far forward",
     question="How far toward the enemy spawn are their Operator fights, compared with every team on this map?",
     population="Operator/Outlaw kills and hits by the team on one map and side, with a shooter position",
     numerator="Median of d(own spawn) / (d(own spawn) + d(enemy spawn)) at the shooter's position",

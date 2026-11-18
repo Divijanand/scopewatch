@@ -5,13 +5,13 @@ from collections import Counter
 
 import numpy as np
 
-from .core import Filters, MetricDef, MetricResult, Rate, Unknown, metric
+from .core import Filters, MetricDef, MetricResult, Rate, Unknown, metric, ranked
 from .operator import OP
 
 MIN_LEAGUE_ROUNDS = 20
 
 SETUPS = MetricDef(
-    id="op.setups", version=1, title="Where they play it",
+    id="op.setups", version=2, title="Where they play it",
     question="Where is the Operator/Outlaw when the team fires it for the first time in a round?",
     population="Team rounds on one map and side where the team fired an Operator/Outlaw (kill or hit) "
                "between buy-phase end and the round result",
@@ -73,9 +73,9 @@ def setups(con, f: Filters) -> MetricResult:
     by = {}
     for r in named:
         by.setdefault(r[4], []).append(r)
-    for callout, rs in sorted(by.items(), key=lambda kv: -len(kv[1])):
-        players = Counter(r[3] for r in rs).most_common()
-        targets = Counter(r[5] for r in rs if r[5]).most_common(2)
+    for callout, rs in sorted(by.items(), key=lambda kv: (-len(kv[1]), str(kv[0]))):
+        players = ranked(Counter(r[3] for r in rs))
+        targets = ranked(Counter(r[5] for r in rs if r[5]), 2)
         res.breakdown.append(dict(
             bucket=callout, callout=callout, rate=Rate.of(len(rs), n),
             players=[dict(name=nm, k=k) for nm, k in players],
@@ -128,11 +128,11 @@ def deaths(con, f: Filters) -> MetricResult:
     by = {}
     for r in named:
         by.setdefault(r[2], []).append(r)
-    for callout, rs in sorted(by.items(), key=lambda kv: -len(kv[1])):
+    for callout, rs in sorted(by.items(), key=lambda kv: (-len(kv[1]), str(kv[0]))):
         res.breakdown.append(dict(
             bucket=callout, callout=callout, rate=Rate.of(len(rs), n),
-            from_=[dict(callout=c, k=k) for c, k in Counter(r[3] for r in rs if r[3]).most_common(2)],
-            weapons=[dict(weapon=wpn, k=k) for wpn, k in Counter(r[4] for r in rs).most_common(2)],
+            from_=[dict(callout=c, k=k) for c, k in ranked(Counter(r[3] for r in rs if r[3]), 2)],
+            weapons=[dict(weapon=wpn, k=k) for wpn, k in ranked(Counter(r[4] for r in rs), 2)],
             opening=sum(1 for r in rs if r[6]),
             median_t=round(float(np.median([r[5] for r in rs])), 1),
             round_keys=sorted({r[0] for r in rs}),

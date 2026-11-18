@@ -7,6 +7,8 @@ Each map layer means exactly one thing and has one label. Layers never share a l
 | Observed position | A player's position reported on a GRID event (2D) | "Where each shot was recorded" | In use (Operator sightlines) |
 | Ability cast origin | Caster position at the moment of the cast (supplement, 3D) | "where a player stood when using the ability" | In use (Utility view) |
 | Cast aim direction | Unit view vector at the cast | "the tick shows where they were aiming" | In use (Utility view) |
+| Observed damage position | Median position of enemies hurt by one use of damaging utility, from GRID damage events, linked to its throw | "where it hurt an enemy" | In use (Utility view, Mollies and damage) |
+| Wall direction | Line from the caster along the aim for wall abilities; length not measured | "runs from ... toward ..." | In use (Utility view, Walls and smokes) |
 | Interpolated origin | Position between two movement frames (`pos_source = interpolated`) | "Interpolated position" | Recorded per cast |
 | Verified annotation | Analyst-entered endpoint with evidence | "Verified annotation" | Not built |
 | Estimated endpoint | Output of an ability-specific, validated model | "Estimated endpoint" | Not built; no model planned without validation data |

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import duckdb
 
-from . import callouts
+from . import callouts, weapons
 
 from .config import DATA_DIR, DB_PATH, MANIFEST_PATH, RAW_DIR
 
@@ -135,6 +135,8 @@ def main():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(DB_PATH.as_posix())
     con.execute(SQL)
+    w = weapons.backfill(con)
+    print(f"weapons: {w['filled']:,} weaponless kills matched to their damage event; {w['null_after']:,} left unknown")
     for m, st in callouts.annotate(con).items():
         print(f"callouts {m:9s} {st['positions']:>8,} positions, {st['named']:.1%} named, median {st['median_dist_m']} m to anchor")
     for t in ("games", "rounds", "team_rounds", "player_rounds", "engagements", "casts", "objectives",

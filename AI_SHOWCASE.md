@@ -21,4 +21,8 @@ A running log, written as the work happens. Each entry names the tool, the task,
 | 2026-11-18 | Claude Code (review of Junie) | Found label leakage from post-round kills, a slow per-round loop, dead SQL, and a split test that tested scikit-learn instead of our code; sent back to Junie as a follow-up task | `0096f50` (issues listed) |
 | 2026-11-18 | Claude Code | Utility view: setup heatmaps with aim ticks, callout findings, ability filters | `88034bc` |
 | 2026-11-18 | Junie | Review fixes: post-round kills no longer leak the label (test log loss 0.3757 → 0.3794, the expected small drop), linear row building, dead SQL removed, split moved into a tested function, calibration shows mean predicted vs actual | _this commit_ |
-| 2026-11-18 | Claude Code (second review) | Retrained independently: report reproduces exactly; 58 tests pass. Two test-quality issues left for the next Junie task | _this commit_ |
+| 2026-11-18 | Claude Code (second review) | Retrained independently: report reproduces exactly; 58 tests pass. Two test-quality issues left for the next Junie task | `3ac136b` |
+| 2026-11-18 | Junie | Operator value (WPA): fit/load/predict API, event scoring, holder WPA, series bootstrap, metric, tests | `0ab7120` |
+| 2026-11-18 | Claude Code (review of Junie) | Found: metric never registered (the API would fail on restart), 2–2.7 s per call, player filter ignored, an empty test | sent back to Junie |
+| 2026-11-18 | Junie | Fixes: registered, precomputed holder WPA (0.14–0.19 s), player filter, real logic test with a stub model, deterministic event order | `0ab7120` |
+| 2026-11-18 | Claude Code (integration) | Credited Tour de Force in WPA, rebuilt the scores, made every ranking deterministic (repeat loads differed on ties), cached reports per filter | _this commit_ |

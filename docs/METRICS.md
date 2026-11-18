@@ -19,7 +19,7 @@ Shared definitions:
 - **Economy**: team loadout value at buy-phase end: eco < 5,000 ≤ half < 15,000 ≤ full (D-006).
 
 
-## How they hit sites (`att.executes` v1)
+## How they hit sites (`att.executes` v2)
 
 **Question:** On attack, which site does the team plant on, how fast, where does first contact happen, and what utility goes in before the plant?
 
@@ -42,7 +42,7 @@ Shared definitions:
 - **Caveat:** Holder = had the Operator/Outlaw at buy-phase end; they may have dropped or swapped it.
 - **Caveat:** Callouts are the nearest reachable community callout anchor, an approximation.
 
-## Getting away with it (`op.escapes` v1)
+## Getting away with it (`op.escapes` v2)
 
 **Question:** After an Operator kill, does the shooter use a movement ability, and do they survive the next 5 seconds?
 
@@ -53,7 +53,7 @@ Shared definitions:
 - **Caveat:** A cast is recorded; whether it actually moved the player to safety isn't.
 - **Caveat:** Survival is association, not cause: holders who escape may also have picked safer angles.
 
-## How far forward (`op.forwardness` v1)
+## How far forward (`op.forwardness` v2)
 
 **Question:** How far toward the enemy spawn are their Operator fights, compared with every team on this map?
 
@@ -63,7 +63,7 @@ Shared definitions:
 - **Caveat:** Needs a single map and side.
 - **Caveat:** Positions come from the event, not continuous tracking.
 
-## What the Operator buys them (`op.gamble` v1)
+## What the Operator buys them (`op.gamble` v2)
 
 **Question:** In rounds a player holds the Operator/Outlaw, does it earn kills before it's lost, and does the enemy end up with it?
 
@@ -94,7 +94,7 @@ Shared definitions:
 - **Caveat:** Casts without a reliable position (ability-supplement quality) aren't counted, so utility is undercounted.
 - **Caveat:** Swarmed = two or more different enemies hit the holder in the 3 s before the death.
 
-## When it fires (`op.kill_timing` v1)
+## When it fires (`op.kill_timing` v2)
 
 **Question:** When in the round do the team's Operator/Outlaw kills happen?
 
@@ -102,9 +102,10 @@ Shared definitions:
 - **Numerator:** Kills in each window of time since buy-phase end
 - **Unit:** kills
 - **Caveat:** A kill is when the duel ended, not when the hold started.
+- **Caveat:** Sniper kills include Chamber's ultimate (Tour de Force).
 - **Caveat:** Windows are an analytical choice (0-20, 20-40, 40-60, 60+ s); short rounds can't reach late windows.
 
-## Opening duels (`op.opening` v1)
+## Opening duels (`op.opening` v2)
 
 **Question:** In rounds where they have an Operator, how often does it take or lose the round's first kill?
 
@@ -123,7 +124,7 @@ Shared definitions:
 - **Caveat:** Possession at buy-phase end, not purchase: the feed has no purchase events.
 - **Caveat:** Rounds without an inventory snapshot are reported as unknown, never as 'no Operator'.
 
-## Where they play it (`op.setups` v1)
+## Where they play it (`op.setups` v2)
 
 **Question:** Where is the Operator/Outlaw when the team fires it for the first time in a round?
 
@@ -144,14 +145,29 @@ Shared definitions:
 - **Unit:** rounds
 - **Caveat:** Association, not cause: economy, opponent and map choice also differ between these rounds.
 
-## Utility setups (`util.placements` v1)
+## What the Operator is worth (`op.wpa` v1)
+
+**Question:** How much win probability does this player add per Operator round?
+
+- **Population:** Player rounds where the player held an Operator or Outlaw at buy-phase end.
+- **Numerator:** Sum of Win Probability Added (WPA) from Operator kills and holder's death.
+- **Unit:** pp
+- **Caveat:** The model has no positions, so a kill gets all the credit.
+- **Caveat:** Trades and assists aren't split.
+- **Caveat:** Association, not cause.
+- **Caveat:** The model also scores the series it was trained on.
+
+## Utility (`util.placements` v2)
 
 **Question:** Where does the team put each ability on this map and side, and in how many rounds?
 
 - **Population:** The team's rounds on one map and side
-- **Numerator:** Rounds with at least one cast of this ability from this callout
+- **Numerator:** Rounds with at least one use of this ability at this callout
 - **Unit:** rounds
-- **Caveat:** Position = where the caster stood when using the ability (ability supplement). For setups placed in the buy phase that is next to the setup; thrown utility lands elsewhere, and the feed doesn't record where.
+- **Caveat:** Setups, flashes and recon: position = where the caster stood (ability supplement). Setups placed in the buy phase sit next to it; thrown flashes and recon land elsewhere.
+- **Caveat:** Mollies and damaging utility: position = where it hurt an enemy (median of the hit players' positions), linked to the throw. Uses that hit nobody are invisible: this shows where it worked, not every throw.
+- **Caveat:** Walls (Viper, Harbor, Neon, Phoenix): drawn from the caster along the aim direction; the length isn't measured.
+- **Caveat:** Map-placed smokes (Omen, Brimstone, Clove, Astra, Harbor Cove, Viper orb) have no position in the feed: only how often and when they're used.
 - **Caveat:** Callout = nearest community callout the caster could reach on the minimap; an approximation.
 - **Caveat:** Casts whose position failed the quality policy (UTILITY_SPATIAL_SEMANTICS.md) are counted as unknown, never placed on the map.
 - **Caveat:** VCT Americas 2025 positions are sampled about once a second, so they're less precise.

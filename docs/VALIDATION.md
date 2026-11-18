@@ -2,7 +2,7 @@
 
 Checks that were actually run and what they showed. Dataset commit `496fa7f`, parser 2.0.1, run on 2026-11-17.
 
-## Automated tests (57 passing)
+## Automated tests (70 passing)
 
 `python -m pytest tests`. The fixtures are synthetic: invented teams, players and coordinates in GRID's documented shape, never extracts of the corpus.
 
@@ -18,6 +18,11 @@ Checks that were actually run and what they showed. Dataset commit `496fa7f`, pa
 | Ingest IO | Malformed lines are quarantined, not fatal |
 | Map transform | Corners and y-flip; round trip preserves native coordinates; missing geometry stays null; out-of-bounds detected; affine fit recovers a rotated image with zero holdout error; collinear landmarks rejected; minimap calibration swaps axes |
 | Ability quality | Every supplement quality state gets an explicit decision; `missing_both` never becomes 0,0; 1 Hz series detected |
+| Weapon backfill | A weaponless kill takes the weapon of the same attacker's hit on the same victim within 50 ms; 200 ms apart or another attacker doesn't match; known weapons untouched; idempotent |
+| Tour de Force | Counts as a sniper kill, never as a picked-up Operator |
+| Agent kits | One agent's kit is shown by mode; unplaced abilities never drawn; denominator is rounds with that agent |
+| Rankings | Ties broken by name, independent of the order rows arrive |
+| Operator value (Junie) | WPA logic on a stub model; registry includes every report metric; bootstrap determinism; metric on hand-built holder rounds |
 | Utility setups | Rounds counted per ability and callout (two traps in one round count once); unplaced casts reported as unknown; post-round casts and other teams ignored; smokes kept apart from setups; needs a map and side |
 | Win-probability model (Junie) | Feature building on a synthetic round; series split has no overlap; a 5v1 ranks above a 1v5 |
 | Site executes | Plant → site; site entry ignores an early pick elsewhere and uses the attacker's own callout; only attacker utility in the 25 s before the plant counts; a defending Operator that died without a kill is counted; the defense view is empty and adds no warning |
@@ -75,6 +80,6 @@ The timeline and inventory come straight from `player_rounds` and `engagements` 
 
 ## Known open items
 
-- 11,024 engagements have no weapon source (likely ability damage); not yet characterised.
+- 123 kills still have no weapon (no matching damage event); Headhunter kills can't be told apart.
 - No Playwright journey test yet.
 - No usability check with a coach. None is claimed.
