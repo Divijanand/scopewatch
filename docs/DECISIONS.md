@@ -51,3 +51,13 @@ Consequential choices and the evidence behind them. Newest last.
 **Decision:** Each series writes its own density grid (`cache/v2/raw/density/{series}.npz`); `engine.maps` sums them.
 
 **Why:** The first version merged grids across runs, so an incremental re-ingest double-counted positions. Per-series files make re-ingest replace, never add. Only casts that pass the quality policy add points.
+
+## D-009: Real minimaps with the community calibration replace the drawn outlines (2026-11-18)
+
+**Decision:** The map view uses the in-game minimaps and world→minimap numbers from valorant-api.com (`engine/minimaps.py`), recoloured to our palette. The data-drawn outline (D-002) stays as a fallback for any map without a minimap.
+
+**Why:** A coach who knows the maps couldn't read the drawn outline. It was blobby, and it was rotated 90° from the in-game minimap, because the minimap puts game y on the horizontal axis and the outline put game x there. Every fight looked wrong even when the data was right.
+
+**Evidence:** GRID positions are native game units, so the community transform applies unchanged. Spike plants land on the minimap floor 98.5–100% of the time on every map, and buy-phase spawns 99.2–100%. With the axes not swapped, plants land on the floor 0–72%. Summit, which failed with the drawn outline, now validates. Kill lines with a clear path on the minimap (≤2 of 60 samples on transparent pixels): 85% of all kills on Lotus, 88% on Ascent and Haven. The rest are mostly boxes and objects that are transparent on the minimap, plus wallbangs.
+
+**Trade-off:** It's Riot artwork via an unofficial host. The images are fetched into git-ignored `cache/` and never committed. Every map is checked against independent landmarks on each build.

@@ -9,9 +9,9 @@ States: `supported`, `partial`, `unsupported`, `not_inspected`. General data cap
 | Continuous movement | unsupported | Positions only at events; supplement frames only around casts |
 | Uniform sampling | unsupported | 1 Hz for VCT Americas 2025 casts, 5 Hz elsewhere |
 | Map bounds | supported | `map.bounds` in GRID game state, per map |
-| Ready-to-use minimap images | unsupported | None in the corpus. We draw our own (MAP_ASSET_POLICY.md) |
-| World→pixel transform | supported | Exact by construction for our outlines; versioned in `config/maps/` |
-| Outline calibration | supported (12 maps) / partial (Summit) | Independent landmark check; MAP_CALIBRATION.md |
+| Ready-to-use minimap images | supported (external) | None in the corpus; in-game minimaps fetched from valorant-api.com (MAP_ASSET_POLICY.md) |
+| World→pixel transform | supported | Community calibration (axis swap), validated per map with landmarks; versioned in `config/maps/` |
+| Map calibration | supported (13 of 13 maps) | Independent landmark check; MAP_CALIBRATION.md |
 | Ability landing locations | unsupported | Not in any feed (S5) |
 | Official callout polygons | unsupported | Not in the corpus; none used |
 | Elevation (z) in GRID events | unsupported | Supplement only |

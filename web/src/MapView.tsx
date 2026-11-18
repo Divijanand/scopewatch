@@ -46,8 +46,7 @@ export function MapView({ mapName, meta, engagements, spawns, showDamage }: Prop
       )}
       <svg viewBox={`0 0 ${meta.width} ${meta.height}`} role="img"
            aria-label={`${cap(mapName)} with ${shown.length} Operator engagements`}>
-        <image href={`/api/maps/${mapName}.png`} width={meta.width} height={meta.height}
-               style={{ imageRendering: 'pixelated' }} />
+        <image href={`/api/maps/${mapName}.png?v=${meta.image_sha1 ?? meta.transform_version}`} width={meta.width} height={meta.height} />
         {spawns && Object.entries(spawns).map(([side, s]) => {
           const [x, y] = toPx(s.x, s.y)
           return (

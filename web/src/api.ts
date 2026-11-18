@@ -18,7 +18,7 @@ export type TeamMap = { map: string; maps: number; rounds: number; op_rounds: nu
 export type Affine = { a: number; b: number; c: number; d: number; e: number; f: number }
 export type MapMeta = {
   minX: number; minY: number; maxX: number; maxY: number; width: number; height: number; samples: number
-  transform: Affine; transform_version: string
+  transform: Affine; transform_version: string; image_sha1?: string; source?: 'minimap' | 'outline'
   calibration_status: 'validated' | 'needs_review' | 'not_validated'
 }
 export type MetricDef = {

@@ -2,7 +2,7 @@
 
 Checks that were actually run and what they showed. Dataset commit `496fa7f`, parser 2.0.1, run on 2026-11-17.
 
-## Automated tests (33 passing)
+## Automated tests (34 passing)
 
 `python -m pytest tests`. The fixtures are synthetic: invented teams, players and coordinates in GRID's documented shape, never extracts of the corpus.
 
@@ -16,7 +16,7 @@ Checks that were actually run and what they showed. Dataset commit `496fa7f`, pa
 | Positions | Repeat flag set only when a player's xy equals their previous one |
 | Casts | Joined to rounds by round start (buy-phase casts get negative clocks); reversed-in-GRID casts excluded; `gap_exceeded` uses the closer real frame; no-geometry casts kept for counts but never mapped |
 | Ingest IO | Malformed lines are quarantined, not fatal |
-| Map transform | Corners and y-flip; round trip preserves native coordinates; missing geometry stays null; out-of-bounds detected; affine fit recovers a rotated image with zero holdout error; collinear landmarks rejected |
+| Map transform | Corners and y-flip; round trip preserves native coordinates; missing geometry stays null; out-of-bounds detected; affine fit recovers a rotated image with zero holdout error; collinear landmarks rejected; minimap calibration swaps axes |
 | Ability quality | Every supplement quality state gets an explicit decision; `missing_both` never becomes 0,0; 1 Hz series detected |
 | Metrics | n/N, unknowns and evidence reconcile exactly on hand-built tables for possession, holders and possession shift, kill timing, opening duels and win association; Wilson bounds |
 
@@ -42,10 +42,12 @@ Checks that were actually run and what they showed. Dataset commit `496fa7f`, pa
 
 | Check | Result |
 |---|---|
-| Map transform | Outlines are drawn from the same coordinates as events, so the transform is identity plus raster scale (D-002) |
+| Map transform | In-game minimaps with the community calibration (D-009). The axis-swapped transform puts 98.5–100% of plants on the floor; unswapped, 0–72% |
 | Spawns | Buy-phase-start positions are tight (spread about 1–3 m in the probe series) and sit at opposite ends of each map. Visual check: Lotus attacker spawn at the left map edge |
 | Outline shape | Haven shows its three lanes, courtyard and walls (visual check) |
-| Landmark calibration | 12 of 13 maps validated (98.6–100% of independent plant and spawn positions on the drawn floor); Summit needs review (43.8% / 66.7%) and the UI warns. Details: MAP_CALIBRATION.md |
+| Landmark calibration | 13 of 13 maps validated on the minimaps (plants 98.46–100%, spawns 99.2–100%). Details: MAP_CALIBRATION.md |
+| Position freshness | A player's position changes between events more than 5 s apart in 99.96% of cases; events in the same millisecond (damage then kill) share a position |
+| Kill lines | On the minimap, 85–88% of kills (Lotus, Ascent, Haven) have a clear path; the rest mostly cross boxes that are transparent on the minimap, or are wallbangs |
 
 ## Manual trace: finding → rounds → source
 

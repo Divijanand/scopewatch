@@ -1,0 +1,76 @@
+{
+ "map": "corrode",
+ "map_version": "minimap-va-53a299f",
+ "transform_version": "corrode-minimap-va-53a299f",
+ "asset": {
+  "source": "valorant-api.com /v1/maps displayIcon (community-hosted Riot Games minimap)",
+  "source_url": "https://media.valorant-api.com/maps/1c18ab1f-420d-0d8b-71d0-77ad3c439115/displayicon.png",
+  "map_url": "/Game/Maps/Rook/Rook",
+  "map_uuid": "1c18ab1f-420d-0d8b-71d0-77ad3c439115",
+  "retrieved": null,
+  "sha1_original": "53a299fa4f6ccb439d358035c2fd4d4cb88667b2",
+  "official": false,
+  "third_party": true,
+  "terms": "Riot Games IP, used under Riot's fan-content policy (Legal Jibber Jabber); not redistributed: fetched into git-ignored cache/",
+  "crop": [
+   8,
+   57,
+   1024,
+   966
+  ],
+  "restyled": "recoloured to the Scopewatch palette; shapes unchanged",
+  "calibration_source": {
+   "xMultiplier": 7e-05,
+   "yMultiplier": -7e-05,
+   "xScalarToAdd": 0.526158,
+   "yScalarToAdd": 0.5,
+   "provided_by": "valorant-api.com (community)"
+  },
+  "file": "cache/v2/maps/corrode.png",
+  "sha1": "7d60c6b1de983eeceaa951284549cef4ccacac5c",
+  "width": 1016,
+  "height": 909
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": -6000.0,
+  "minY": -7100.0,
+  "maxX": 6000.0,
+  "maxY": 6500.0
+ },
+ "world_to_pixel": {
+  "a": 0.0,
+  "b": 0.07168,
+  "c": 530.785792,
+  "d": -0.07168,
+  "e": 0.0,
+  "f": 455.0
+ },
+ "calibration": {
+  "method": "independent landmarks on the minimap floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 1234,
+    "on_floor": 1234,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 848,
+    "on_floor": 848,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-18"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "one image for every map version in the corpus"
+ ]
+}

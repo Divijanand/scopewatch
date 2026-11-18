@@ -1,0 +1,76 @@
+{
+ "map": "lotus",
+ "map_version": "minimap-va-a737848",
+ "transform_version": "lotus-minimap-va-a737848",
+ "asset": {
+  "source": "valorant-api.com /v1/maps displayIcon (community-hosted Riot Games minimap)",
+  "source_url": "https://media.valorant-api.com/maps/2fe4ed3a-450a-948b-6d6b-e89a78e680a9/displayicon.png",
+  "map_url": "/Game/Maps/Jam/Jam",
+  "map_uuid": "2fe4ed3a-450a-948b-6d6b-e89a78e680a9",
+  "retrieved": null,
+  "sha1_original": "a737848a1dd78acaa0ca1f747e061019932a7be8",
+  "official": false,
+  "third_party": true,
+  "terms": "Riot Games IP, used under Riot's fan-content policy (Legal Jibber Jabber); not redistributed: fetched into git-ignored cache/",
+  "crop": [
+   32,
+   96,
+   977,
+   942
+  ],
+  "restyled": "recoloured to the Scopewatch palette; shapes unchanged",
+  "calibration_source": {
+   "xMultiplier": 7.2e-05,
+   "yMultiplier": -7.2e-05,
+   "xScalarToAdd": 0.454789,
+   "yScalarToAdd": 0.917752,
+   "provided_by": "valorant-api.com (community)"
+  },
+  "file": "cache/v2/maps/lotus.png",
+  "sha1": "3f4fe380c8571d2f78a54f51dd2d806dd09f4a2b",
+  "width": 945,
+  "height": 846
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": 300.0,
+  "minY": -5500.0,
+  "maxX": 11000.0,
+  "maxY": 6550.0
+ },
+ "world_to_pixel": {
+  "a": 0.0,
+  "b": 0.073728,
+  "c": 433.703936,
+  "d": -0.073728,
+  "e": 0.0,
+  "f": 843.778048
+ },
+ "calibration": {
+  "method": "independent landmarks on the minimap floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 4955,
+    "on_floor": 4955,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 3259,
+    "on_floor": 3259,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-18"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "one image for every map version in the corpus"
+ ]
+}

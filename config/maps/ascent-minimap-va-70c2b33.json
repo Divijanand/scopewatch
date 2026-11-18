@@ -1,0 +1,76 @@
+{
+ "map": "ascent",
+ "map_version": "minimap-va-70c2b33",
+ "transform_version": "ascent-minimap-va-70c2b33",
+ "asset": {
+  "source": "valorant-api.com /v1/maps displayIcon (community-hosted Riot Games minimap)",
+  "source_url": "https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png",
+  "map_url": "/Game/Maps/Ascent/Ascent",
+  "map_uuid": "7eaecc1b-4337-bbf6-6ab9-04b8f06b3319",
+  "retrieved": null,
+  "sha1_original": "70c2b33c0886c1f88ffe402907b0295e652c567a",
+  "official": false,
+  "third_party": true,
+  "terms": "Riot Games IP, used under Riot's fan-content policy (Legal Jibber Jabber); not redistributed: fetched into git-ignored cache/",
+  "crop": [
+   17,
+   23,
+   1014,
+   960
+  ],
+  "restyled": "recoloured to the Scopewatch palette; shapes unchanged",
+  "calibration_source": {
+   "xMultiplier": 7e-05,
+   "yMultiplier": -7e-05,
+   "xScalarToAdd": 0.813895,
+   "yScalarToAdd": 0.573242,
+   "provided_by": "valorant-api.com (community)"
+  },
+  "file": "cache/v2/maps/ascent.png",
+  "sha1": "1dc0beec908ca24b298a5b68f18ccb28bb6fc210",
+  "width": 997,
+  "height": 937
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": -4850.0,
+  "minY": -11100.0,
+  "maxX": 7550.0,
+  "maxY": 2200.0
+ },
+ "world_to_pixel": {
+  "a": 0.0,
+  "b": 0.07168,
+  "c": 816.42848,
+  "d": -0.07168,
+  "e": 0.0,
+  "f": 563.999808
+ },
+ "calibration": {
+  "method": "independent landmarks on the minimap floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 2404,
+    "on_floor": 2404,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 1776,
+    "on_floor": 1776,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-18"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "one image for every map version in the corpus"
+ ]
+}

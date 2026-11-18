@@ -2,7 +2,11 @@
 
 ## Decision
 
-Scopewatch uses **original map outlines drawn from observed GRID positions** (`engine/maps.py`). No Riot or third-party map artwork is bundled, fetched or required, so the demo works offline and has no asset-rights questions.
+Scopewatch shows the **in-game minimaps**, using the world→minimap calibration from valorant-api.com (`engine/minimaps.py`), recoloured to the Scopewatch palette (D-009). The **original outline drawn from GRID positions** (`engine/maps.py`) is the fallback for any map without a minimap.
+
+The minimaps are Riot Games artwork, used under Riot's fan-content policy ("Legal Jibber Jabber"). They're fetched into git-ignored `cache/` with `python -m engine.minimaps` and are never committed or redistributed. They're labelled unofficial.
+
+The original policy (outlines only) was reversed on 2026-11-18. Analysts couldn't read the drawn outline, which was also rotated 90° from the in-game minimap.
 
 ## Sources checked (2026-11-17), in the priority order of the map-data spec
 
@@ -10,8 +14,8 @@ Scopewatch uses **original map outlines drawn from observed GRID positions** (`e
 |---|---|---|---|
 | 1 | Riot Public Content Catalog, `PublicContentCatalog-release-08.09.zip` (valorant.dyn.riotcdn.net) | Official. HTTP HEAD: 509,672,170 bytes, last modified 2024-05-14. That predates Abyss (June 2024), Corrode and Summit, 3 of the 13 maps in the corpus, and Riot notes the catalog lags patches. | No. Not downloaded: stale for this corpus and 510 MB. |
 | 2 | playvalorant.com media | Content-creator media; app-asset use not established | No |
-| 3 | valorant-api.com `/v1/maps` (unofficial community API) | Minimap URLs plus per-map world→image multipliers for all 13 maps | No. Unofficial; the demo must not depend on it. Its transforms could serve as a cross-check later, labelled community-provided. |
-| 4 | Original schematic | Drawn from the union of observed positions; walls are areas no player was ever recorded in | **Yes** |
+| 3 | valorant-api.com `/v1/maps` (unofficial community API) | Minimap URLs plus per-map world→image multipliers for all 13 maps | **Yes, since 2026-11-18.** Images plus calibration; every map is checked against independent landmarks (MAP_CALIBRATION.md) |
+| 4 | Original schematic | Drawn from the union of observed positions; walls are areas no player was ever recorded in | Fallback only |
 
 ## Rules
 

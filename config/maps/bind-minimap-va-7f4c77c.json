@@ -1,0 +1,76 @@
+{
+ "map": "bind",
+ "map_version": "minimap-va-7f4c77c",
+ "transform_version": "bind-minimap-va-7f4c77c",
+ "asset": {
+  "source": "valorant-api.com /v1/maps displayIcon (community-hosted Riot Games minimap)",
+  "source_url": "https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/displayicon.png",
+  "map_url": "/Game/Maps/Duality/Duality",
+  "map_uuid": "2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba",
+  "retrieved": null,
+  "sha1_original": "7f4c77ce2d0077e133690642b8482dcaded840a5",
+  "official": false,
+  "third_party": true,
+  "terms": "Riot Games IP, used under Riot's fan-content policy (Legal Jibber Jabber); not redistributed: fetched into git-ignored cache/",
+  "crop": [
+   67,
+   0,
+   1024,
+   1004
+  ],
+  "restyled": "recoloured to the Scopewatch palette; shapes unchanged",
+  "calibration_source": {
+   "xMultiplier": 5.9e-05,
+   "yMultiplier": -5.9e-05,
+   "xScalarToAdd": 0.576941,
+   "yScalarToAdd": 0.967566,
+   "provided_by": "valorant-api.com (community)"
+  },
+  "file": "cache/v2/maps/bind.png",
+  "sha1": "2cbb763d2a5ffa446429543845d44ac6e623a419",
+  "width": 957,
+  "height": 1004
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": 100.0,
+  "minY": -7300.0,
+  "maxX": 16100.0,
+  "maxY": 6050.0
+ },
+ "world_to_pixel": {
+  "a": 0.0,
+  "b": 0.060416,
+  "c": 523.787584,
+  "d": -0.060416,
+  "e": 0.0,
+  "f": 990.787584
+ },
+ "calibration": {
+  "method": "independent landmarks on the minimap floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 1818,
+    "on_floor": 1790,
+    "on_floor_rate": 0.9846,
+    "off_image": 17,
+    "off_floor_median_px": 15.0
+   },
+   "spawn_positions": {
+    "n": 1358,
+    "on_floor": 1340,
+    "on_floor_rate": 0.9867,
+    "off_image": 7,
+    "off_floor_median_px": 120.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-18"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "one image for every map version in the corpus"
+ ]
+}

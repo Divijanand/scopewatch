@@ -46,3 +46,28 @@ def test_fit_recovers_rotation_and_reports_residuals():
 def test_fit_rejects_collinear_landmarks():
     with pytest.raises(ValueError):
         fit_affine([(0, 0), (1, 1), (2, 2)], [(0, 0), (1, 1), (2, 2)])
+
+
+def test_minimap_transform_swaps_axes(tmp_path, monkeypatch):
+    """valorant-api calibration: image x comes from game y, image y from game x."""
+    import json
+    import numpy as np
+    from PIL import Image
+    from engine import minimaps
+
+    img = np.zeros((1024, 1024, 4), np.uint8)
+    img[100:900, 50:950] = (118, 118, 118, 255)
+    Image.fromarray(img, "RGBA").save(tmp_path / "testmap.png")
+    m = dict(displayName="Testmap", displayIcon="x", mapUrl="/Game/Maps/T", uuid="u",
+             xMultiplier=7e-05, yMultiplier=-7e-05, xScalarToAdd=0.5, yScalarToAdd=0.6)
+    (tmp_path / "valorant-api-maps.json").write_text(json.dumps({"data": [m]}))
+    monkeypatch.setattr(minimaps, "SRC_DIR", tmp_path)
+    monkeypatch.setattr(minimaps, "INDEX", tmp_path / "valorant-api-maps.json")
+
+    im, t, asset = minimaps.build("testmap")
+    x0, y0 = asset["crop"][:2]
+    px, py = t.apply(1000.0, 2000.0)
+    assert px == pytest.approx(1024 * (2000.0 * 7e-05 + 0.5) - x0)
+    assert py == pytest.approx(1024 * (1000.0 * -7e-05 + 0.6) - y0)
+    assert asset["third_party"] and not asset["official"]
+    assert np.asarray(im)[0, 0, 3] == 0  # out-of-bounds stays transparent

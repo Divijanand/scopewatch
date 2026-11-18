@@ -25,6 +25,7 @@ from scipy import ndimage
 
 from pipeline.maps import SCALE, render
 from .config import DB_PATH, MAP_BIN_CM, MAPS_DIR, RAW_DIR, ROOT
+from .minimaps import build as build_minimap
 from .spatial import bounds_transform
 
 CONFIG_DIR = ROOT / "config" / "maps"
@@ -87,13 +88,28 @@ def main():
         if grid.sum() < 5000:
             print(f"skip {name}: only {int(grid.sum())} samples")
             continue
-        im, mask = render(grid)
-        path = MAPS_DIR / f"{name}.png"
-        im.save(path, optimize=True)
-        sha = hashlib.sha1(path.read_bytes()).hexdigest()
-        bhash = hashlib.sha1(np.array(b).tobytes()).hexdigest()[:6]
-        version = f"{ASSET_VERSION}-b{bhash}"
-        t = bounds_transform(*b, im.width, im.height)
+        mini = build_minimap(name)
+        if mini is not None:
+            im, t, asset_extra = mini
+            mask = np.asarray(im)[:, :, 3] > 0
+            path = MAPS_DIR / f"{name}.png"
+            im.save(path, optimize=True)
+            sha = hashlib.sha1(path.read_bytes()).hexdigest()
+            version = f"minimap-va-{asset_extra['sha1_original'][:7]}"
+            asset = dict(asset_extra, file=f"cache/v2/maps/{name}.png", sha1=sha, width=im.width, height=im.height)
+            method = "independent landmarks on the minimap floor"
+        else:
+            im, mask = render(grid)
+            path = MAPS_DIR / f"{name}.png"
+            im.save(path, optimize=True)
+            sha = hashlib.sha1(path.read_bytes()).hexdigest()
+            bhash = hashlib.sha1(np.array(b).tobytes()).hexdigest()[:6]
+            version = f"{ASSET_VERSION}-b{bhash}"
+            t = bounds_transform(*b, im.width, im.height)
+            asset = dict(source="original: drawn from observed GRID positions (engine/maps.py)",
+                         official=False, third_party=False, file=f"cache/v2/maps/{name}.png", sha1=sha,
+                         width=im.width, height=im.height, terms="original work, MIT with this repo")
+            method = "independent landmarks on the drawn floor"
 
         checks, status = {}, "not_validated"
         if con is not None:
@@ -103,19 +119,21 @@ def main():
 
         cfg = dict(
             map=name, map_version=version, transform_version=f"{name}-{version}",
-            asset=dict(source="original: drawn from observed GRID positions (engine/maps.py)",
-                       official=False, third_party=False, file=f"cache/v2/maps/{name}.png", sha1=sha,
-                       width=im.width, height=im.height, terms="original work, MIT with this repo"),
+            asset=asset,
             coordinate_units="GRID native game units (cm), +y up",
-            world_bounds=dict(minX=b[0], minY=b[1], maxX=b[2], maxY=b[3]), bin_cm=MAP_BIN_CM, scale=SCALE,
+            world_bounds=dict(minX=b[0], minY=b[1], maxX=b[2], maxY=b[3]),
             world_to_pixel=t.to_dict(),
-            calibration=dict(method="independent landmarks on the drawn floor", tolerance_px=TOLERANCE_PX,
+            calibration=dict(method=method, tolerance_px=TOLERANCE_PX,
                              pass_rate=PASS_RATE, checks=checks, status=status, reviewed=str(date.today())),
             known_limits=["2D projection: elevated areas overlap lower ones",
+                          "one image for every map version in the corpus" if mini else
                           "outline pools all map versions in the corpus that share these bounds"],
         )
         (CONFIG_DIR / f"{name}-{version}.json").write_text(json.dumps(cfg, indent=1))
-        meta[name] = dict(minX=b[0], minY=b[1], maxX=b[2], maxY=b[3], binCm=MAP_BIN_CM, scale=SCALE,
+        for stale in CONFIG_DIR.glob(f"{name}-*.json"):
+            if stale.name != f"{name}-{version}.json":
+                stale.unlink()
+        meta[name] = dict(minX=b[0], minY=b[1], maxX=b[2], maxY=b[3], source="minimap" if mini else "outline", image_sha1=sha[:10],
                           width=im.width, height=im.height, samples=int(grid.sum()),
                           walkableFrac=round(float(mask.mean()), 3), transform=t.to_dict(),
                           transform_version=cfg["transform_version"], calibration_status=status)

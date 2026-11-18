@@ -1,0 +1,76 @@
+{
+ "map": "summit",
+ "map_version": "minimap-va-fd3b91b",
+ "transform_version": "summit-minimap-va-fd3b91b",
+ "asset": {
+  "source": "valorant-api.com /v1/maps displayIcon (community-hosted Riot Games minimap)",
+  "source_url": "https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png",
+  "map_url": "/Game/Maps/Plummet/Plummet",
+  "map_uuid": "756da597-416b-c0f2-f47b-afbdf28670bc",
+  "retrieved": null,
+  "sha1_original": "fd3b91b7f26e310b4c44111b7ee7c6de4b49d49a",
+  "official": false,
+  "third_party": true,
+  "terms": "Riot Games IP, used under Riot's fan-content policy (Legal Jibber Jabber); not redistributed: fetched into git-ignored cache/",
+  "crop": [
+   14,
+   0,
+   1024,
+   1024
+  ],
+  "restyled": "recoloured to the Scopewatch palette; shapes unchanged",
+  "calibration_source": {
+   "xMultiplier": 7.5e-05,
+   "yMultiplier": -7.5e-05,
+   "xScalarToAdd": 0.047401,
+   "yScalarToAdd": 0.978891,
+   "provided_by": "valorant-api.com (community)"
+  },
+  "file": "cache/v2/maps/summit.png",
+  "sha1": "88d874b544bbad8af6c1df6ec737f26315b4b2f6",
+  "width": 1010,
+  "height": 1024
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": 300.0,
+  "minY": -50.0,
+  "maxX": 12700.0,
+  "maxY": 10250.0
+ },
+ "world_to_pixel": {
+  "a": 0.0,
+  "b": 0.0768,
+  "c": 34.538624,
+  "d": -0.0768,
+  "e": 0.0,
+  "f": 1002.384384
+ },
+ "calibration": {
+  "method": "independent landmarks on the minimap floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 48,
+    "on_floor": 48,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 32,
+    "on_floor": 32,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-18"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "one image for every map version in the corpus"
+ ]
+}

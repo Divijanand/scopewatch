@@ -1,0 +1,76 @@
+{
+ "map": "fracture",
+ "map_version": "minimap-va-fac989c",
+ "transform_version": "fracture-minimap-va-fac989c",
+ "asset": {
+  "source": "valorant-api.com /v1/maps displayIcon (community-hosted Riot Games minimap)",
+  "source_url": "https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/displayicon.png",
+  "map_url": "/Game/Maps/Canyon/Canyon",
+  "map_uuid": "b529448b-4d60-346e-e89e-00a4c527a405",
+  "retrieved": null,
+  "sha1_original": "fac989ce31f05449a739eecf931d2889b3150b93",
+  "official": false,
+  "third_party": true,
+  "terms": "Riot Games IP, used under Riot's fan-content policy (Legal Jibber Jabber); not redistributed: fetched into git-ignored cache/",
+  "crop": [
+   0,
+   44,
+   970,
+   973
+  ],
+  "restyled": "recoloured to the Scopewatch palette; shapes unchanged",
+  "calibration_source": {
+   "xMultiplier": 7.8e-05,
+   "yMultiplier": -7.8e-05,
+   "xScalarToAdd": 0.556952,
+   "yScalarToAdd": 1.155886,
+   "provided_by": "valorant-api.com (community)"
+  },
+  "file": "cache/v2/maps/fracture.png",
+  "sha1": "697dda8c7d53a7229338dbbb995ec1b444e7760b",
+  "width": 970,
+  "height": 929
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": 3000.0,
+  "minY": -6850.0,
+  "maxX": 13900.0,
+  "maxY": 4700.0
+ },
+ "world_to_pixel": {
+  "a": 0.0,
+  "b": 0.079872,
+  "c": 570.318848,
+  "d": -0.079872,
+  "e": 0.0,
+  "f": 1139.627264
+ },
+ "calibration": {
+  "method": "independent landmarks on the minimap floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 1275,
+    "on_floor": 1275,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 872,
+    "on_floor": 872,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-18"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "one image for every map version in the corpus"
+ ]
+}

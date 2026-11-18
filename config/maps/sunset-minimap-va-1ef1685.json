@@ -1,0 +1,76 @@
+{
+ "map": "sunset",
+ "map_version": "minimap-va-1ef1685",
+ "transform_version": "sunset-minimap-va-1ef1685",
+ "asset": {
+  "source": "valorant-api.com /v1/maps displayIcon (community-hosted Riot Games minimap)",
+  "source_url": "https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/displayicon.png",
+  "map_url": "/Game/Maps/Juliett/Juliett",
+  "map_uuid": "92584fbe-486a-b1b2-9faa-39b0f486b498",
+  "retrieved": null,
+  "sha1_original": "1ef16854fffc18dfd57b276a606093a470f9babd",
+  "official": false,
+  "third_party": true,
+  "terms": "Riot Games IP, used under Riot's fan-content policy (Legal Jibber Jabber); not redistributed: fetched into git-ignored cache/",
+  "crop": [
+   22,
+   0,
+   1018,
+   1024
+  ],
+  "restyled": "recoloured to the Scopewatch palette; shapes unchanged",
+  "calibration_source": {
+   "xMultiplier": 7.8e-05,
+   "yMultiplier": -7.8e-05,
+   "xScalarToAdd": 0.5,
+   "yScalarToAdd": 0.515625,
+   "provided_by": "valorant-api.com (community)"
+  },
+  "file": "cache/v2/maps/sunset.png",
+  "sha1": "81e352d314b970e5b7c92f587aa05d16603521bf",
+  "width": 996,
+  "height": 1024
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": -6000.0,
+  "minY": -5800.0,
+  "maxX": 6450.0,
+  "maxY": 6000.0
+ },
+ "world_to_pixel": {
+  "a": 0.0,
+  "b": 0.079872,
+  "c": 490.0,
+  "d": -0.079872,
+  "e": 0.0,
+  "f": 528.0
+ },
+ "calibration": {
+  "method": "independent landmarks on the minimap floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 1934,
+    "on_floor": 1934,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 1395,
+    "on_floor": 1395,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-18"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "one image for every map version in the corpus"
+ ]
+}
