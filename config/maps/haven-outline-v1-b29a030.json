@@ -1,0 +1,59 @@
+{
+ "map": "haven",
+ "map_version": "outline-v1-b29a030",
+ "transform_version": "haven-outline-v1-b29a030",
+ "asset": {
+  "source": "original: drawn from observed GRID positions (engine/maps.py)",
+  "official": false,
+  "third_party": false,
+  "file": "cache/v2/maps/haven.png",
+  "sha1": "ede86ccb26c2b303edd43af325c59083fe9cac4a",
+  "width": 672,
+  "height": 741,
+  "terms": "original work, MIT with this repo"
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": -3700.0,
+  "minY": -14100.0,
+  "maxX": 7450.0,
+  "maxY": -1800.0
+ },
+ "bin_cm": 50,
+ "scale": 3,
+ "world_to_pixel": {
+  "a": 0.06026905829596413,
+  "b": 0.0,
+  "c": 222.99551569506727,
+  "d": 0.0,
+  "e": -0.06024390243902439,
+  "f": -108.4390243902439
+ },
+ "calibration": {
+  "method": "independent landmarks on the drawn floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 6051,
+    "on_floor": 6051,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 4069,
+    "on_floor": 4069,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-17"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "outline pools all map versions in the corpus that share these bounds"
+ ]
+}

@@ -1,0 +1,59 @@
+{
+ "map": "abyss",
+ "map_version": "outline-v1-bfb18d1",
+ "transform_version": "abyss-outline-v1-bfb18d1",
+ "asset": {
+  "source": "original: drawn from observed GRID positions (engine/maps.py)",
+  "official": false,
+  "third_party": false,
+  "file": "cache/v2/maps/abyss.png",
+  "sha1": "481e791bf97998206dcec785f331558beb521500",
+  "width": 723,
+  "height": 759,
+  "terms": "original work, MIT with this repo"
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": -6000.0,
+  "minY": -6800.0,
+  "maxX": 6000.0,
+  "maxY": 5800.0
+ },
+ "bin_cm": 50,
+ "scale": 3,
+ "world_to_pixel": {
+  "a": 0.06025,
+  "b": 0.0,
+  "c": 361.5,
+  "d": 0.0,
+  "e": -0.060238095238095236,
+  "f": 349.38095238095235
+ },
+ "calibration": {
+  "method": "independent landmarks on the drawn floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 851,
+    "on_floor": 851,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 525,
+    "on_floor": 525,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-17"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "outline pools all map versions in the corpus that share these bounds"
+ ]
+}

@@ -2,7 +2,7 @@
 
 Checks that were actually run and what they showed. Dataset commit `496fa7f`, parser 2.0.1, run on 2026-11-17.
 
-## Automated tests (21 passing)
+## Automated tests (33 passing)
 
 `python -m pytest tests`. The fixtures are synthetic: invented teams, players and coordinates in GRID's documented shape, never extracts of the corpus.
 
@@ -16,6 +16,8 @@ Checks that were actually run and what they showed. Dataset commit `496fa7f`, pa
 | Positions | Repeat flag set only when a player's xy equals their previous one |
 | Casts | Joined to rounds by round start (buy-phase casts get negative clocks); reversed-in-GRID casts excluded; `gap_exceeded` uses the closer real frame; no-geometry casts kept for counts but never mapped |
 | Ingest IO | Malformed lines are quarantined, not fatal |
+| Map transform | Corners and y-flip; round trip preserves native coordinates; missing geometry stays null; out-of-bounds detected; affine fit recovers a rotated image with zero holdout error; collinear landmarks rejected |
+| Ability quality | Every supplement quality state gets an explicit decision; `missing_both` never becomes 0,0; 1 Hz series detected |
 | Metrics | n/N, unknowns and evidence reconcile exactly on hand-built tables for possession, holders and possession shift, kill timing, opening duels and win association; Wilson bounds |
 
 ## Full-corpus ingest reconciliation
@@ -43,7 +45,7 @@ Checks that were actually run and what they showed. Dataset commit `496fa7f`, pa
 | Map transform | Outlines are drawn from the same coordinates as events, so the transform is identity plus raster scale (D-002) |
 | Spawns | Buy-phase-start positions are tight (spread about 1–3 m in the probe series) and sit at opposite ends of each map. Visual check: Lotus attacker spawn at the left map edge |
 | Outline shape | Haven shows its three lanes, courtyard and walls (visual check) |
-| Not yet done | Automated landmark test: every plant position falls on the walkable mask |
+| Landmark calibration | 12 of 13 maps validated (98.6–100% of independent plant and spawn positions on the drawn floor); Summit needs review (43.8% / 66.7%) and the UI warns. Details: MAP_CALIBRATION.md |
 
 ## Manual trace: finding → rounds → source
 

@@ -206,3 +206,5 @@ button, select, input { font: inherit; color: inherit; }
 .timeline .tl-obj { font-weight: 600; }
 
 @media (max-width: 900px) { .round-view { padding-left: 8px; } .legend .lg-src { margin-left: 0; } }
+
+.map-warn { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--warn); background: var(--sheet); color: var(--warn); font-size: 0.9rem; }

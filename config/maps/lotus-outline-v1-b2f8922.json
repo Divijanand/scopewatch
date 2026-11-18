@@ -1,0 +1,59 @@
+{
+ "map": "lotus",
+ "map_version": "outline-v1-b2f8922",
+ "transform_version": "lotus-outline-v1-b2f8922",
+ "asset": {
+  "source": "original: drawn from observed GRID positions (engine/maps.py)",
+  "official": false,
+  "third_party": false,
+  "file": "cache/v2/maps/lotus.png",
+  "sha1": "e8b3091df1de189d6cbc357f113b1ef7760de2c2",
+  "width": 645,
+  "height": 726,
+  "terms": "original work, MIT with this repo"
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": 300.0,
+  "minY": -5500.0,
+  "maxX": 11000.0,
+  "maxY": 6550.0
+ },
+ "bin_cm": 50,
+ "scale": 3,
+ "world_to_pixel": {
+  "a": 0.0602803738317757,
+  "b": 0.0,
+  "c": -18.08411214953271,
+  "d": 0.0,
+  "e": -0.06024896265560166,
+  "f": 394.6307053941909
+ },
+ "calibration": {
+  "method": "independent landmarks on the drawn floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 4955,
+    "on_floor": 4955,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 3329,
+    "on_floor": 3329,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-17"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "outline pools all map versions in the corpus that share these bounds"
+ ]
+}

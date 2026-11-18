@@ -1,0 +1,59 @@
+{
+ "map": "summit",
+ "map_version": "outline-v1-bb403b7",
+ "transform_version": "summit-outline-v1-bb403b7",
+ "asset": {
+  "source": "original: drawn from observed GRID positions (engine/maps.py)",
+  "official": false,
+  "third_party": false,
+  "file": "cache/v2/maps/summit.png",
+  "sha1": "f8c5514eabdcb16178b974e1c90754f558ad1d7a",
+  "width": 747,
+  "height": 621,
+  "terms": "original work, MIT with this repo"
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": 300.0,
+  "minY": -50.0,
+  "maxX": 12700.0,
+  "maxY": 10250.0
+ },
+ "bin_cm": 50,
+ "scale": 3,
+ "world_to_pixel": {
+  "a": 0.06024193548387097,
+  "b": 0.0,
+  "c": -18.072580645161292,
+  "d": 0.0,
+  "e": -0.06029126213592233,
+  "f": 617.9854368932039
+ },
+ "calibration": {
+  "method": "independent landmarks on the drawn floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 48,
+    "on_floor": 21,
+    "on_floor_rate": 0.4375,
+    "off_image": 25,
+    "off_floor_median_px": 5.7
+   },
+   "spawn_positions": {
+    "n": 30,
+    "on_floor": 20,
+    "on_floor_rate": 0.6667,
+    "off_image": 0,
+    "off_floor_median_px": 13.6
+   }
+  },
+  "status": "needs_review",
+  "reviewed": "2026-11-17"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "outline pools all map versions in the corpus that share these bounds"
+ ]
+}

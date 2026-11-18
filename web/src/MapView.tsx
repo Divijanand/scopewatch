@@ -24,11 +24,12 @@ type Props = {
 export function MapView({ mapName, meta, engagements, spawns, showDamage }: Props) {
   const [hover, setHover] = useState<Engagement | null>(null)
 
+  // versioned world->pixel transform from config/maps (native coordinates are never modified)
   const toPx = useMemo(() => {
-    const sx = meta.width / (meta.maxX - meta.minX)
-    const sy = meta.height / (meta.maxY - meta.minY)
-    return (x: number, y: number) => [(x - meta.minX) * sx, (meta.maxY - y) * sy] as const
+    const t = meta.transform
+    return (x: number, y: number) => [t.a * x + t.b * y + t.c, t.d * x + t.e * y + t.f] as const
   }, [meta])
+  const calibrated = meta.calibration_status === 'validated'
 
   const shown = engagements.filter((e) => e.x != null && (showDamage || e.kind === 'kill'))
   // kills on top of damage, later fights on top of earlier ones
@@ -36,6 +37,13 @@ export function MapView({ mapName, meta, engagements, spawns, showDamage }: Prop
 
   return (
     <figure className="map">
+      {!calibrated && (
+        <p className="warn map-warn" role="status">
+          {meta.calibration_status === 'needs_review'
+            ? 'This map outline failed its landmark check: too few games to draw it fully. Lines may sit off the drawn floor.'
+            : 'This map outline hasn’t been checked against landmarks yet. Treat positions as approximate.'}
+        </p>
+      )}
       <svg viewBox={`0 0 ${meta.width} ${meta.height}`} role="img"
            aria-label={`${cap(mapName)} with ${shown.length} Operator engagements`}>
         <image href={`/api/maps/${mapName}.png`} width={meta.width} height={meta.height}

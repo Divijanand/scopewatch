@@ -1,0 +1,59 @@
+{
+ "map": "sunset",
+ "map_version": "outline-v1-b589f0a",
+ "transform_version": "sunset-outline-v1-b589f0a",
+ "asset": {
+  "source": "original: drawn from observed GRID positions (engine/maps.py)",
+  "official": false,
+  "third_party": false,
+  "file": "cache/v2/maps/sunset.png",
+  "sha1": "ede25766f380fc6da306f03270a70b7419729041",
+  "width": 750,
+  "height": 711,
+  "terms": "original work, MIT with this repo"
+ },
+ "coordinate_units": "GRID native game units (cm), +y up",
+ "world_bounds": {
+  "minX": -6000.0,
+  "minY": -5800.0,
+  "maxX": 6450.0,
+  "maxY": 6000.0
+ },
+ "bin_cm": 50,
+ "scale": 3,
+ "world_to_pixel": {
+  "a": 0.060240963855421686,
+  "b": 0.0,
+  "c": 361.4457831325301,
+  "d": 0.0,
+  "e": -0.060254237288135594,
+  "f": 361.52542372881356
+ },
+ "calibration": {
+  "method": "independent landmarks on the drawn floor",
+  "tolerance_px": 4,
+  "pass_rate": 0.97,
+  "checks": {
+   "spike_plants": {
+    "n": 1934,
+    "on_floor": 1934,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   },
+   "spawn_positions": {
+    "n": 1323,
+    "on_floor": 1323,
+    "on_floor_rate": 1.0,
+    "off_image": 0,
+    "off_floor_median_px": 0.0
+   }
+  },
+  "status": "validated",
+  "reviewed": "2026-11-17"
+ },
+ "known_limits": [
+  "2D projection: elevated areas overlap lower ones",
+  "outline pools all map versions in the corpus that share these bounds"
+ ]
+}

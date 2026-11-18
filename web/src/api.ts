@@ -15,7 +15,12 @@ export type Team = {
   last_played: string; league: 'VCT' | 'Game Changers'
 }
 export type TeamMap = { map: string; maps: number; rounds: number; op_rounds: number }
-export type MapMeta = { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number; samples: number }
+export type Affine = { a: number; b: number; c: number; d: number; e: number; f: number }
+export type MapMeta = {
+  minX: number; minY: number; maxX: number; maxY: number; width: number; height: number; samples: number
+  transform: Affine; transform_version: string
+  calibration_status: 'validated' | 'needs_review' | 'not_validated'
+}
 export type MetricDef = {
   id: string; version: number; title: string; question: string; population: string
   numerator: string; unit: string; caveats: string[]
