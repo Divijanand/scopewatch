@@ -108,3 +108,13 @@ Consequential choices and the evidence behind them. Newest last.
 **Evidence:** Every plant in the corpus gets a site. On Lotus, plants split A 2,004 / C 1,965 / B 986.
 
 **Limits:** Rounds without a plant have no site (35 of 155 for Cloud9 on Lotus attack). Utility is the cast, not the landing. "Against an Operator" is small per team and site, so it's labelled with its count.
+
+## D-014: Utility setups from cast positions, named by callout (2026-11-18)
+
+**Decision:** The Utility view shows where a team uses each ability on one map and side (`util.placements`, `/api/utility`). There are four layers: setups (Cypher, Killjoy, Chamber, Vyse, Deadlock and Sage placeables), smokes, flashes and stuns, and recon. Each cast is drawn at the caster's position with an aim tick, and named with the nearest reachable callout. Findings count **rounds**, not casts: "Cyber Cage at C Site in 27 of 62 defense rounds".
+
+**Why:** It's the brief's first blueprint for this category (placeables first), and it produces exactly the kind of claim the brief asks for.
+
+**Evidence:** Setups are where cast position is most meaningful. 83% of trapwires, 85% of Chamber trademarks and 87% of Vyse Shears are placed in the buy phase, and 100% of placeable casts pass the position-quality policy.
+
+**Limits:** Thrown utility (Omen and Brimstone smokes, flashes, recon) lands somewhere else, and the feed doesn't record where. Those layers say "used from", and the UI says so. Casts after the round result are left out. Lower-rate (1 Hz) positions are drawn dashed.

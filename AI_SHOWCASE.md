@@ -5,7 +5,8 @@ A running log, written as the work happens. Each entry names the tool, the task,
 ## Tools
 - **Claude Code** (Anthropic): engine v1–v2, metrics, map calibration, UI, docs. Commits are co-authored.
 - **PyCharm**: shared run configurations are in the repo; _usage to be logged as it happens._
-- **Junie / JetBrains Air**: _to be logged as features are built with them._
+- **Junie** (in PyCharm, JetBrains AI Ultimate): builds features from a written task and follows `AGENTS.md`; Claude Code reviews its output.
+- **JetBrains Air**: _to be logged._
 
 ## Log
 
@@ -14,4 +15,8 @@ A running log, written as the work happens. Each entry names the tool, the task,
 | 2026-11-17 | Claude Code | Engine v2: reversal-safe ingest, metric registry, evidence API and UI | `21ef371` |
 | 2026-11-18 | Claude Code | In-game minimaps with landmark calibration | `4874190` |
 | 2026-11-18 | Claude Code | Callout-based findings, VOD links, Operator gamble, site executes | `cd81af1`, `c2de0a9`, `e5a351d` |
-| 2026-11-18 | Claude Code | PyCharm run configurations, AGENTS.md for Junie/Air | _this commit_ |
+| 2026-11-18 | Claude Code | PyCharm run configurations, AGENTS.md for Junie/Air | `2d4b96f` |
+| 2026-11-18 | PyCharm | Clean project venv exposed missing Pillow/scipy in requirements.txt; fixed | `5679dcd` |
+| 2026-11-18 | Junie | Round win-probability model: features, series split, gradient boosting vs logistic baseline, calibration report, tests, run configuration | _this commit_ |
+| 2026-11-18 | Claude Code (review of Junie) | Found label leakage from post-round kills, a slow per-round loop, dead SQL, and a split test that tested scikit-learn instead of our code; sent back to Junie as a follow-up task | pending |
+| 2026-11-18 | Claude Code | Utility view: setup heatmaps with aim ticks, callout findings, ability filters | _this commit_ |

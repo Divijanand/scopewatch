@@ -72,6 +72,16 @@ export type VodRound = { url: string; buy_end_s: number | null; synced_at_round:
 export type VodGame = { game_id: string; url: string | null; syncs: { round_no: number; vod_s: number }[] }
 export type Evidence = { total: number; which: string; rounds: EvidenceRound[] }
 
+export type UtilityGroup = 'setup' | 'smoke' | 'flash' | 'recon'
+export type Cast = {
+  round_key: string; ability: string; agent: string | null; player: string | null; t_round: number | null; phase: string
+  x: number; y: number; vx: number | null; vy: number | null; low_rate: boolean; callout: string | null
+}
+export type UtilityLayer = {
+  layer: string; group: UtilityGroup; result: MetricResult; casts: Cast[]
+  spawns: Record<string, { x: number; y: number }>
+}
+
 export type RoundContext = {
   game_id: string; vod: VodRound | null
   round: {
@@ -104,7 +114,8 @@ export const api = {
   teamMaps: (id: string) => get<TeamMap[]>(`/api/teams/${id}/maps`),
   tendencies: (q: Query) => get<Tendencies>(`/api/weapons/tendencies?${qs(q)}`),
   spatial: (q: Query) => get<Spatial>(`/api/spatial/operator?${qs(q)}`),
-  evidence: (q: Query & { metric: string; which: 'supporting' | 'contrary'; bucket?: string; page?: number }) =>
+  utility: (q: Query & { group: UtilityGroup }) => get<UtilityLayer>(`/api/utility?${qs(q)}`),
+  evidence: (q: Query & { metric: string; which: 'supporting' | 'contrary'; bucket?: string; group?: string; page?: number }) =>
     get<Evidence>(`/api/evidence?${qs(q)}`),
   round: (key: string) => get<RoundContext>(`/api/rounds/${encodeURIComponent(key)}`),
   saveVod: (gameId: string, body: { url?: string; round_no?: number; vod_s?: number }) =>

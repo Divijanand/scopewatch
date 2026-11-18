@@ -5,8 +5,8 @@ Each map layer means exactly one thing and has one label. Layers never share a l
 | Layer | What it is | UI label | Status |
 |---|---|---|---|
 | Observed position | A player's position reported on a GRID event (2D) | "Where each shot was recorded" | In use (Operator sightlines) |
-| Ability cast origin | Caster position at the moment of the cast (supplement, 3D) | "Ability cast origin" | Ingested; UI planned |
-| Cast aim direction | Unit view vector at the cast | "Cast aim direction" | Ingested; UI planned |
+| Ability cast origin | Caster position at the moment of the cast (supplement, 3D) | "where a player stood when using the ability" | In use (Utility view) |
+| Cast aim direction | Unit view vector at the cast | "the tick shows where they were aiming" | In use (Utility view) |
 | Interpolated origin | Position between two movement frames (`pos_source = interpolated`) | "Interpolated position" | Recorded per cast |
 | Verified annotation | Analyst-entered endpoint with evidence | "Verified annotation" | Not built |
 | Estimated endpoint | Output of an ability-specific, validated model | "Estimated endpoint" | Not built; no model planned without validation data |

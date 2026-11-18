@@ -23,6 +23,7 @@ from engine.config import DB_PATH, MAPS_DIR
 from engine.coverage import coverage
 from engine.metrics import REGISTRY, Filters
 from engine.metrics.operator import ENG_COLS, _op_engagements, spawns as _spawns
+from engine.metrics.utility import casts_in_scope, name_positions
 
 app = FastAPI(title="Scopewatch", version="2")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["GET", "PUT", "DELETE"])
@@ -132,17 +133,38 @@ def spatial_operator(team_id: str, map: str, side: str | None = SIDE, since: str
                          spawns={k: dict(x=v[0], y=v[1]) for k, v in sp.items()}), f, warnings=warns)
 
 
+@app.get("/api/utility")
+def utility_layer(team_id: str, map: str, side: str = Query("defender", pattern="^(attacker|defender)$"),
+                  group: str = Query("setup", pattern="^(setup|smoke|flash|recon)$"),
+                  since: str | None = DATE, until: str | None = DATE, player_id: str | None = None,
+                  limit: int = Query(4000, le=8000)):
+    """Utility setups (metric) plus the map layer: caster positions and aim, never landing spots."""
+    f = filters(team_id, map, side, since, until, player_id)
+    d, fn = REGISTRY["util.placements"]
+    res = fn(con(), f, group=group)
+    rows = [r for r in casts_in_scope(con(), f, group=group) if r[11] and r[7] is not None]
+    names = name_positions(map, [r[7] for r in rows], [r[8] for r in rows])
+    pts = [dict(round_key=r[0], ability=r[1], agent=r[2], player=r[4], t_round=r[5], phase=r[6],
+                x=r[7], y=r[8], vx=r[9], vy=r[10], low_rate=bool(r[12]), callout=nm)
+           for r, nm in zip(rows, names)]
+    warns = res.warnings + ([f"Showing {limit} of {len(pts)} casts."] if len(pts) > limit else [])
+    return envelope(dict(layer="ability_cast_origin", group=group, result=res.to_dict(evidence_limit=0),
+                         casts=pts[:limit], spawns={k: dict(x=v[0], y=v[1]) for k, v in _spawns(con(), map).items()}),
+                    f, warnings=warns, definitions=[f"{d.id}@v{d.version}"])
+
+
 @app.get("/api/evidence")
 def evidence(metric: str, team_id: str, map: str | None = None, side: str | None = SIDE,
              since: str | None = DATE, until: str | None = DATE, player_id: str | None = None,
              which: str = Query("supporting", pattern="^(supporting|contrary)$"),
-             bucket: str | None = None, page: int = Query(0, ge=0), page_size: int = Query(25, le=100)):
+             bucket: str | None = None, group: str | None = Query(None, pattern="^(setup|smoke|flash|recon)$"),
+             page: int = Query(0, ge=0), page_size: int = Query(25, le=100)):
     """The rounds behind a metric result, newest first, paginated."""
     if metric not in REGISTRY:
         raise HTTPException(404, "Unknown metric")
     f = filters(team_id, map, side, since, until, player_id)
     d, fn = REGISTRY[metric]
-    res = fn(con(), f)
+    res = fn(con(), f, group=group) if (metric == "util.placements" and group) else fn(con(), f)
     keys = res.supporting if which == "supporting" else res.contrary
     if bucket and any("round_keys" in b for b in res.breakdown):  # one bar / callout of a breakdown
         in_bucket = next((b["round_keys"] for b in res.breakdown if b["bucket"] == bucket), [])

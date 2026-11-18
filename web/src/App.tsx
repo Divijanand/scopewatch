@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, cap } from './api'
-import type { Catalog, Coverage, Query, Spatial, Team, TeamMap, Tendencies } from './api'
+import type { Catalog, Coverage, Query, Spatial, Team, TeamMap, Tendencies, UtilityGroup, UtilityLayer } from './api'
+import { GROUP_LABEL, UtilityFindings, UtilityMap } from './Utility'
+import type { UtilFocus } from './Utility'
 import { MapView } from './MapView'
 import { Findings, bucketOf } from './Findings'
 import type { Bucket, Focus } from './Findings'
@@ -33,6 +35,10 @@ export default function App() {
   const [buckets, setBuckets] = useState<Set<Bucket>>(new Set())
   const [showDamage, setShowDamage] = useState(true)
   const [focus, setFocus] = useState<Focus | null>(null)
+  const [view, setView] = useState<'operator' | 'utility'>('operator')
+  const [group, setGroup] = useState<UtilityGroup>('setup')
+  const [util, setUtil] = useState<UtilityLayer | null>(null)
+  const [utilFocus, setUtilFocus] = useState<UtilFocus | null>(null)
   const [tend, setTend] = useState<Tendencies | null>(null)
   const [coverage, setCoverage] = useState<Coverage | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
@@ -73,6 +79,16 @@ export default function App() {
       .catch((e) => setError(`Couldn’t load this view: ${e.message}`))
       .finally(() => setLoading(false))
   }, [q])
+
+  useEffect(() => {
+    if (!q || view !== 'utility') return
+    setUtilFocus(null)
+    setLoading(true)
+    api.utility({ ...q, side: q.side ?? 'defender', group })
+      .then((r) => { setUtil(r.data); setError(null) })
+      .catch((e) => setError(`Couldn’t load utility: ${e.message}`))
+      .finally(() => setLoading(false))
+  }, [q, view, group])
 
   const team: Team | undefined = catalog?.teams.find((t) => t.team_id === teamId)
   const engagements = useMemo(
@@ -150,6 +166,29 @@ export default function App() {
             )}
           </nav>
 
+          <div className="views" role="tablist" aria-label="What to show">
+            <button role="tab" aria-selected={view === 'operator'} onClick={() => setView('operator')}>Operator</button>
+            <button role="tab" aria-selected={view === 'utility'} onClick={() => { setView('utility'); if (!side) setSide('defender') }}>Utility</button>
+            {view === 'utility' && (
+              <div className="seg" role="group" aria-label="Utility type">
+                {(Object.keys(GROUP_LABEL) as UtilityGroup[]).map((g) => (
+                  <button key={g} aria-pressed={group === g} onClick={() => setGroup(g)}>{GROUP_LABEL[g]}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {view === 'utility' ? (
+            <div className={loading ? 'board loading' : 'board'} aria-busy={loading}>
+              {map && catalog?.maps[map] && util && (
+                <UtilityMap mapName={map} meta={catalog.maps[map]} layer={util} focus={utilFocus} />
+              )}
+              {util && (
+                <UtilityFindings layer={util} side={side} def={catalog?.metrics.find((m) => m.id === 'util.placements')}
+                                 focus={utilFocus} onFocus={setUtilFocus} onEvidence={setEvidence} />
+              )}
+            </div>
+          ) : (
           <div className={loading ? 'board loading' : 'board'} aria-busy={loading}>
             {map && catalog?.maps[map] && spatial && (
               <MapView mapName={map} meta={catalog.maps[map]} engagements={engagements}
@@ -161,12 +200,13 @@ export default function App() {
                         focus={focus} onFocus={setFocus} />
             )}
           </div>
-          <footer className="legend">
+          )}
+          {view === 'operator' && <footer className="legend">
             <span className="grad" aria-hidden /> Early fight to late fight
             <span className="lg-kill" aria-hidden>×</span> Kill
             <span className="lg-dmg" aria-hidden /> Hit, no kill
             <span className="lg-src">Positions are where each shot was recorded, not continuous tracking.</span>
-          </footer>
+          </footer>}
         </main>
       )}
 

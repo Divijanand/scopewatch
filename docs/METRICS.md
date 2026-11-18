@@ -143,3 +143,16 @@ Shared definitions:
 - **Numerator:** Rounds won
 - **Unit:** rounds
 - **Caveat:** Association, not cause: economy, opponent and map choice also differ between these rounds.
+
+## Utility setups (`util.placements` v1)
+
+**Question:** Where does the team put each ability on this map and side, and in how many rounds?
+
+- **Population:** The team's rounds on one map and side
+- **Numerator:** Rounds with at least one cast of this ability from this callout
+- **Unit:** rounds
+- **Caveat:** Position = where the caster stood when using the ability (ability supplement). For setups placed in the buy phase that is next to the setup; thrown utility lands elsewhere, and the feed doesn't record where.
+- **Caveat:** Callout = nearest community callout the caster could reach on the minimap; an approximation.
+- **Caveat:** Casts whose position failed the quality policy (UTILITY_SPATIAL_SEMANTICS.md) are counted as unknown, never placed on the map.
+- **Caveat:** VCT Americas 2025 positions are sampled about once a second, so they're less precise.
+- **Caveat:** Casts after the round result are left out.

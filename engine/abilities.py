@@ -57,3 +57,21 @@ def kind_of(ability: str | None) -> str:
 
 def sql_list(names) -> str:
     return "(" + ",".join("'" + n.replace("'", "''") + "'" for n in sorted(names)) + ")"
+
+# placed and left on the map: Sentinel setups first (the brief's priority), plus Chamber's anchor
+PLACEABLE = frozenset({
+    "trapwire", "cyber-cage", "spycam",                 # Cypher
+    "alarmbot", "turret", "nanoswarm",                  # Killjoy
+    "trademark", "rendezvous",                          # Chamber
+    "razorvine", "shear", "arc-rose",                   # Vyse
+    "gravnet", "sonic-sensor", "barrier-mesh",          # Deadlock
+    "barrier-orb", "slow-orb",                          # Sage
+})
+
+# map layer groups for the utility view
+GROUPS = {
+    "setup": PLACEABLE,
+    "smoke": SMOKE,
+    "flash": FLASH | STUN,
+    "recon": INFO,
+}

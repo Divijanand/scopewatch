@@ -257,3 +257,15 @@ button, select, input { font: inherit; color: inherit; }
 .site-name { font-weight: 700; font-size: 1.05rem; color: var(--ink); }
 .site-head .num .of { color: var(--ink-3); font-weight: 400; }
 .site-op { border-left: 3px solid var(--sky); padding-left: 8px; }
+
+/* view switch: Operator / Utility */
+.views { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 0 0 18px; }
+.views > button[role=tab] { all: unset; cursor: pointer; font-weight: 700; font-size: 1.1rem; color: var(--ink-3); padding: 4px 2px; border-bottom: 3px solid transparent; }
+.views > button[role=tab][aria-selected='true'] { color: var(--ink); border-bottom-color: var(--sky); }
+.views > button[role=tab]:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+.chips button { font: inherit; font-size: .88rem; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); cursor: pointer; }
+.chips button[aria-pressed='true'] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.chips button .num { color: inherit; opacity: .7; margin-left: 4px; }
+.chips button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+.map .cast { cursor: crosshair; }

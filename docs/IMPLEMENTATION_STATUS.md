@@ -6,14 +6,16 @@ Working, partial, and planned items. Only "Working" items are claimed anywhere e
 
 | Item | Evidence |
 |---|---|
-| Streaming ingest of all 857 series with an undo stack for reversals, phase clocks (buy, pre/post-plant, post-round), position-repeat flags, cast quality policy | `engine/ingest`; 857 ok / 0 failed; 50 tests in total |
+| Streaming ingest of all 857 series with an undo stack for reversals, phase clocks (buy, pre/post-plant, post-round), position-repeat flags, cast quality policy | `engine/ingest`; 857 ok / 0 failed; 57 tests in total |
 | Source manifest: per-series checksums, parser version, dataset commit, reconciliation counts; idempotent re-runs; quarantine of malformed lines | `cache/v2/manifest.parquet`; re-run skips unchanged series; `test_malformed_lines_are_quarantined_not_fatal` |
 | Analytical store with round facts (win type, plant), team rounds with `inventory_known`, opening kills, spawns | `engine/store.py` |
-| Metric registry: 12 versioned metrics (11 Operator, 1 execute) with n/N, unknowns, Wilson intervals, supporting/contrary round keys | `engine/metrics`; 6 contract tests on hand-built tables; `docs/METRICS.md` generated from code |
+| Metric registry: 13 versioned metrics (11 Operator, 1 execute, 1 utility) with n/N, unknowns, Wilson intervals, supporting/contrary round keys | `engine/metrics`; 6 contract tests on hand-built tables; `docs/METRICS.md` generated from code |
 | Coverage report per filter (rounds, dates, patches, unknown inventory, retracted records, position repeats, cast quality) | `engine/coverage.py` |
 | API response times under the 500 ms goal (0.24–0.48 s) | VALIDATION.md, Performance |
 | API with envelopes (`data, coverage, warnings, definition_versions, dataset_revision, parser_version, filter_hash`): catalog, coverage, tendencies, spatial layer, paginated evidence, round context | `api/server.py`; endpoint check on real data |
 | UI: findings with sample sizes and ranges, "Show the rounds" evidence drawer (supporting / contrary), round timeline, "How this is measured", coverage strip, player and time filters linked to the map | Browser check 2026-11-17: Cloud9, Lotus defense, OXY 12 of 15 Operator rounds → 12 rounds → round 30 timeline |
+| Utility view: setups, smokes, flashes and stuns, and recon as a heatmap of cast positions with aim ticks; findings in callout language with round counts; filter by ability or by spot; rounds behind each spot | `engine/metrics/utility.py`, `web/src/Utility.tsx`; `tests/test_utility.py`; browser check 2026-11-18, Sentinels Haven defense: Zellsis's Cyber Cage at C Site in 27 of 62 rounds |
+| Round win-probability model (built by Junie): gradient boosting against a logistic baseline, split by series; test log loss 0.376 vs 0.402 | `engine/model/winprob.py`, `docs/MODEL_WINPROB.md`; review found label leakage from post-round kills and a slow per-round loop, fix pending |
 | Site executes on attack: site share vs league, pace, site-entry time and callouts, utility before the plant (per round and by ability), how defending Operators fared | `engine/metrics/executes.py`; `tests/test_executes.py`; browser check 2026-11-18, Cloud9 Lotus attack: A in 55 of 155, entry ~24 s at A Main/A Root, defending Operators died without a kill in 7 of 9 |
 | VOD links: paste a VOD and time one round; every round and kill in that map gets a watch link (YouTube/Twitch open at the second); re-time at any round | `engine/vod.py`, `/api/vod/*`; `tests/test_vod_gamble.py`; browser check 2026-11-18 (test link synced at round 23, then removed) |
 | The Operator as a gamble: what it buys (kept / traded / lost, with league share), escapes after a kill (movement abilities, per agent), how it gets broken (flash/stun, smoke, swarmed, duel) | `engine/metrics/gamble.py`, `engine/abilities.py`; browser check: Cloud9 Lotus defense loses it without an Operator kill in 9 of 15 rounds vs 36% league |
@@ -22,12 +24,10 @@ Working, partial, and planned items. Only "Working" items are claimed anywhere e
 
 ## Partial
 
-- Utility branch: casts feed the escape and how-it-dies metrics; no utility map layer yet.
 - `engagement_weapon_unknown`: 11,024 damage/kill events have no weapon source (likely ability damage); not yet characterised.
 
 ## Not started (planned, Gates D–F)
 
-- Utility metrics and map layer (placeable-ability origins first; aim arrows labelled "cast aim direction").
 - Saved scouting cards with notes (separate SQLite) and packet export.
 - Cohort comparison (recent vs older) and a time-range filter in the UI.
 - Playwright run of the core journey.
