@@ -1,73 +1,97 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, cap } from './api'
-import type { MapMeta, Profile, Team, TeamMap } from './api'
+import type { Catalog, Coverage, Query, Spatial, Team, TeamMap, Tendencies } from './api'
 import { MapView } from './MapView'
-import { Findings } from './Findings'
+import { Findings, bucketOf } from './Findings'
 import type { Bucket } from './Findings'
+import { EvidenceDrawer } from './Evidence'
+import type { EvidenceRequest } from './Evidence'
 
 type Side = 'attacker' | 'defender' | null
 
+function CoverageStrip({ c, warnings }: { c: Coverage; warnings: string[] }) {
+  return (
+    <div className="coverage" aria-label="What this view is based on">
+      <p>
+        {c.rounds} rounds across {c.maps} maps in {c.series} series
+        {c.first_date && <>, {c.first_date} to {c.last_date}</>}, {c.patches.length} patch{c.patches.length === 1 ? '' : 'es'}.
+        {c.rounds_inventory_unknown > 0 && <> {c.rounds_inventory_unknown} rounds have no loadout snapshot and are left out.</>}
+        {c.rows_voided_by_reversals > 0 && <> {c.rows_voided_by_reversals} records the feed later retracted were removed.</>}
+      </p>
+      {warnings.map((w) => <p key={w} className="warn">{w}</p>)}
+    </div>
+  )
+}
+
 export default function App() {
-  const [teams, setTeams] = useState<Team[]>([])
-  const [mapsMeta, setMapsMeta] = useState<Record<string, MapMeta>>({})
-  const [teamId, setTeamId] = useState<string>('')
+  const [catalog, setCatalog] = useState<Catalog | null>(null)
+  const [teamId, setTeamId] = useState('')
   const [teamMaps, setTeamMaps] = useState<TeamMap[]>([])
-  const [map, setMap] = useState<string>('')
+  const [map, setMap] = useState('')
   const [side, setSide] = useState<Side>('defender')
   const [player, setPlayer] = useState<string | null>(null)
   const [buckets, setBuckets] = useState<Set<Bucket>>(new Set())
   const [showDamage, setShowDamage] = useState(true)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [spawns, setSpawns] = useState<Record<string, { x: number; y: number }> | null>(null)
+  const [tend, setTend] = useState<Tendencies | null>(null)
+  const [coverage, setCoverage] = useState<Coverage | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
+  const [spatial, setSpatial] = useState<Spatial | null>(null)
+  const [evidence, setEvidence] = useState<EvidenceRequest | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    Promise.all([api.teams(), api.maps()])
-      .then(([t, m]) => { setTeams(t); setMapsMeta(m); setTeamId(t[0]?.team_id ?? '') })
-      .catch(() => setError('Can’t reach the Scopewatch API. Start it with: uvicorn api.server:app --port 8000'))
+    api.catalog()
+      .then((r) => { setCatalog(r.data); setTeamId(r.data.teams[0]?.team_id ?? '') })
+      .catch(() => setError('Can’t reach the Scopewatch API. Start it from the repo root with: uvicorn api.server:app --port 8000'))
   }, [])
 
   useEffect(() => {
-    if (!teamId) return
-    setPlayer(null)
-    api.teamMaps(teamId).then((ms) => {
-      const usable = ms.filter((m) => mapsMeta[m.map])
+    if (!teamId || !catalog) return
+    setPlayer(null); setBuckets(new Set()); setEvidence(null)
+    api.teamMaps(teamId).then((r) => {
+      const usable = r.data.filter((m) => catalog.maps[m.map])
       setTeamMaps(usable)
       setMap((cur) => (usable.some((m) => m.map === cur) ? cur : usable[0]?.map ?? ''))
     })
-  }, [teamId, mapsMeta])
+  }, [teamId, catalog])
+
+  const q: Query | null = useMemo(
+    () => (teamId && map ? { team_id: teamId, map, side: side ?? undefined, player_id: player ?? undefined } : null),
+    [teamId, map, side, player],
+  )
 
   useEffect(() => {
-    if (!teamId || !map) return
+    if (!q) return
     setLoading(true)
-    api.profile({ team_id: teamId, map, side: side ?? undefined, player_id: player ?? undefined })
-      .then((p) => { setProfile(p); setError(null) })
-      .catch((e) => setError(String(e.message)))
+    Promise.all([api.tendencies(q), api.spatial(q)])
+      .then(([t, s]) => {
+        setTend(t.data); setCoverage(t.coverage ?? null); setWarnings(t.warnings); setSpatial(s.data); setError(null)
+      })
+      .catch((e) => setError(`Couldn’t load this view: ${e.message}`))
       .finally(() => setLoading(false))
-  }, [teamId, map, side, player])
+  }, [q])
 
-  useEffect(() => { if (map) api.spawns(map).then(setSpawns).catch(() => setSpawns(null)) }, [map])
-
-  const team = teams.find((t) => t.team_id === teamId)
+  const team: Team | undefined = catalog?.teams.find((t) => t.team_id === teamId)
   const engagements = useMemo(
-    () => (profile?.engagements ?? []).filter((e) => buckets.size === 0 || buckets.has(e.t_bucket as Bucket)),
-    [profile, buckets],
+    () => (spatial?.engagements ?? []).filter((e) => buckets.size === 0 || buckets.has(bucketOf(e.t_round))),
+    [spatial, buckets],
   )
   const toggleBucket = (b: Bucket) =>
     setBuckets((s) => { const n = new Set(s); if (n.has(b)) n.delete(b); else n.add(b); return n })
+  const closeEvidence = useCallback(() => setEvidence(null), [])
 
   const grouped = useMemo(() => {
     const g: Record<string, Team[]> = { 'Cloud9 (self-scout)': [], VCT: [], 'Game Changers': [] }
-    for (const t of teams) (t.name?.toLowerCase().startsWith('cloud9') ? g['Cloud9 (self-scout)'] : g[t.league]).push(t)
+    for (const t of catalog?.teams ?? []) (t.name?.toLowerCase().startsWith('cloud9') ? g['Cloud9 (self-scout)'] : g[t.league]).push(t)
     for (const k of ['VCT', 'Game Changers']) g[k].sort((a, b) => a.name.localeCompare(b.name))
     return g
-  }, [teams])
+  }, [catalog])
 
-  const playerName = profile?.carriers.find((c) => c.player_id === player)?.name
+  const playerName = tend?.['op.holder_share'].breakdown.find((c) => c.player_id === player)?.name
 
   return (
-    <div className="app">
+    <div className={evidence ? 'app with-drawer' : 'app'}>
       <header className="top">
         <div className="brand">
           <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden>
@@ -77,7 +101,7 @@ export default function App() {
           Scopewatch
         </div>
         <label className="team-pick">
-          <span className="sr">Opponent</span>
+          <span className="sr">Team</span>
           <select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
             {Object.entries(grouped).map(([g, ts]) => ts.length > 0 && (
               <optgroup key={g} label={g}>
@@ -98,8 +122,8 @@ export default function App() {
               Operator report{map && <> for {cap(map)}</>}
               {side && <>, {side === 'attacker' ? 'attack' : 'defense'}</>}
               {playerName && <>, {playerName} only</>}.
-              {profile && <> Based on {profile.sample.rounds} rounds across {profile.sample.maps} maps.</>}
             </p>
+            {coverage && <CoverageStrip c={coverage} warnings={warnings} />}
           </div>
 
           <nav className="controls" aria-label="Filters">
@@ -119,25 +143,31 @@ export default function App() {
               <input type="checkbox" checked={showDamage} onChange={(e) => setShowDamage(e.target.checked)} />
               Show hits that didn’t kill
             </label>
+            {(player || buckets.size > 0) && (
+              <button className="reset" onClick={() => { setPlayer(null); setBuckets(new Set()) }}>Clear player and time filters</button>
+            )}
           </nav>
 
-          <div className={loading ? 'board loading' : 'board'}>
-            {map && mapsMeta[map] && profile && (
-              <MapView mapName={map} meta={mapsMeta[map]} engagements={engagements}
-                       spawns={spawns} showDamage={showDamage} />
+          <div className={loading ? 'board loading' : 'board'} aria-busy={loading}>
+            {map && catalog?.maps[map] && spatial && (
+              <MapView mapName={map} meta={catalog.maps[map]} engagements={engagements}
+                       spawns={spatial.spawns} showDamage={showDamage} />
             )}
-            {profile && (
-              <Findings p={profile} side={side} activePlayer={player} onPlayer={setPlayer}
-                        buckets={buckets} onBucket={toggleBucket} />
+            {tend && (
+              <Findings t={tend} side={side} activePlayer={player} onPlayer={setPlayer}
+                        buckets={buckets} onBucket={toggleBucket} onEvidence={setEvidence} />
             )}
           </div>
           <footer className="legend">
             <span className="grad" aria-hidden /> Early fight to late fight
             <span className="lg-kill" aria-hidden>×</span> Kill
             <span className="lg-dmg" aria-hidden /> Hit, no kill
+            <span className="lg-src">Positions are where each shot was recorded, not continuous tracking.</span>
           </footer>
         </main>
       )}
+
+      {evidence && q && <EvidenceDrawer req={evidence} q={q} onClose={closeEvidence} />}
     </div>
   )
 }

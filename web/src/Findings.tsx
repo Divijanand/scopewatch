@@ -1,147 +1,183 @@
-import type { Profile, Rate } from './api'
+import type { Rate, Tendencies } from './api'
 import { cap, pct } from './api'
+import type { EvidenceRequest } from './Evidence'
 import { timeColor } from './MapView'
 
-const BUCKETS = ['0-20s', '20-40s', '40-60s', '60s+'] as const
+export const BUCKETS = ['0-20s', '20-40s', '40-60s', '60s+'] as const
 export type Bucket = (typeof BUCKETS)[number]
 const BUCKET_MID: Record<Bucket, number> = { '0-20s': 10, '20-40s': 30, '40-60s': 50, '60s+': 75 }
-const BUCKET_LABEL: Record<Bucket, string> = {
-  '0-20s': '0–20s', '20-40s': '20–40s', '40-60s': '40–60s', '60s+': '60s and later',
-}
+const BUCKET_LABEL: Record<Bucket, string> = { '0-20s': '0–20s', '20-40s': '20–40s', '40-60s': '40–60s', '60s+': '60s and later' }
+export const bucketOf = (t: number): Bucket => (t < 20 ? '0-20s' : t < 40 ? '20-40s' : t < 60 ? '40-60s' : '60s+')
 
-function Evidence({ r, unit }: { r: Rate; unit: string }) {
+function Evidence({ r, unit }: { r: Rate | null | undefined; unit: string }) {
   if (!r || r.n === 0) return null
-  const thin = r.n < 10
   return (
-    <span className={thin ? 'evidence thin' : 'evidence'}>
+    <span className={r.small_sample ? 'evidence thin' : 'evidence'}>
       {r.k} of {r.n} {unit}
       {r.lo != null && r.hi != null && <> (likely {Math.round(r.lo * 100)}–{Math.round(r.hi * 100)}%)</>}
-      {thin && <>. Small sample, treat as a hint.</>}
+      {r.small_sample && <>. Small sample, treat as a hint.</>}
     </span>
   )
 }
 
-function Bar({ r, color }: { r: Rate; color?: string }) {
-  if (r.p == null) return null
+function Bar({ r }: { r: Rate | null | undefined }) {
+  if (!r || r.p == null) return <span className="bar" aria-hidden />
   return (
     <span className="bar" aria-hidden>
       {r.lo != null && r.hi != null && (
         <span className="bar-range" style={{ left: `${r.lo * 100}%`, width: `${(r.hi - r.lo) * 100}%` }} />
       )}
-      <span className="bar-fill" style={{ width: `${r.p * 100}%`, background: color }} />
+      <span className="bar-fill" style={{ width: `${r.p * 100}%` }} />
     </span>
   )
 }
 
+function ShowRounds({ onClick, n }: { onClick: () => void; n: number }) {
+  if (!n) return null
+  return <button className="show-rounds" onClick={onClick}>Show the rounds</button>
+}
+
 type Props = {
-  p: Profile
+  t: Tendencies
   side: string | null
   activePlayer: string | null
   onPlayer: (id: string | null) => void
   buckets: Set<Bucket>
   onBucket: (b: Bucket) => void
+  onEvidence: (req: EvidenceRequest) => void
 }
 
-export function Findings({ p, side, activePlayer, onPlayer, buckets, onBucket }: Props) {
+export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, onEvidence }: Props) {
   const sideWord = side === 'attacker' ? 'attack' : side === 'defender' ? 'defense' : null
-  const full = p.buy_by_economy.full
-  const main = p.carriers[0]
-  const kills = p.sample.op_kills
+  const poss = t['op.possession_full_buy']
+  const hold = t['op.holder_share']
+  const time = t['op.kill_timing']
+  const open = t['op.opening']
+  const win = t['op.win_association']
+  const fwd = t['op.forwardness']
+  const main = hold.breakdown[0]
+  const shift: Rate | undefined = hold.value.possession_shift
+  const top = time.value.top_bucket as Bucket | undefined
+  const kills = time.breakdown[0]?.rate.n ?? 0
 
-  // the time window holding most Operator kills
-  const topBucket = BUCKETS.reduce((a, b) => (p.kill_timing[b].kills > p.kill_timing[a].kills ? b : a), BUCKETS[0])
-  const timingRead =
-    topBucket === '0-20s' ? 'an opening-pick rifle' : topBucket === '60s+' ? 'a retake and post-plant rifle' : 'a mid-round rifle'
-
-  // forwardness vs the league, only meaningful for one side on one map
-  const fwds = p.engagements.filter((e) => e.fwd != null && (!side || e.side === side)).map((e) => e.fwd!)
-  const fwdMed = fwds.length ? fwds.sort((a, b) => a - b)[Math.floor(fwds.length / 2)] : null
-  const base = side ? p.league_fwd[side as 'attacker' | 'defender'] : undefined
-  const delta = fwdMed != null && base != null ? fwdMed - base : null
-
-  if (p.sample.rounds === 0) {
-    return <p className="empty">No rounds match these filters. Pick another map or side.</p>
-  }
+  const timingRead = top === '0-20s' ? 'an opening-pick rifle' : top === '60s+' ? 'a retake and post-plant rifle' : 'a mid-round rifle'
+  const fv = fwd.value as { team_median?: number; league_median?: number; n?: number }
+  const delta = fv.team_median != null && fv.league_median != null ? fv.team_median - fv.league_median : null
 
   return (
     <div className="findings">
       <section>
-        <h3>How often they buy it</h3>
+        <h3>How often they have it</h3>
         <p className="claim">
-          {p.buy_rate.k === 0
-            ? <>They never bought an Operator here.</>
-            : <>They buy an Operator in <b>{pct(full)}</b> of full-buy rounds{sideWord && <> on {sideWord}</>}.</>}
+          {poss.rate && poss.rate.n > 0
+            ? poss.rate.k === 0
+              ? <>They never had an Operator on a full buy here.</>
+              : <>They have an Operator in <b>{pct(poss.rate)}</b> of full-buy rounds{sideWord && <> on {sideWord}</>}.</>
+            : <>No full-buy rounds with a known loadout match these filters.</>}
         </p>
-        <Evidence r={full} unit="full buys" />
+        <Evidence r={poss.rate} unit="full buys" />
+        {poss.unknown.map((u) => <span key={u.reason} className="evidence">{u.count} rounds unknown: {u.reason}.</span>)}
         <dl className="econ">
-          {(['full', 'half', 'eco'] as const).map((k) => (
-            <div key={k}>
-              <dt>{k === 'full' ? 'Full buy' : k === 'half' ? 'Half buy' : 'Eco'}</dt>
-              <dd><Bar r={p.buy_by_economy[k] ?? { k: 0, n: 0, p: null, lo: null, hi: null }} /><span className="num">{pct(p.buy_by_economy[k])}</span></dd>
+          {poss.breakdown.map((b) => (
+            <div key={b.economy}>
+              <dt>{b.economy === 'full' ? 'Full buy' : b.economy === 'half' ? 'Half buy' : 'Eco'}</dt>
+              <dd><Bar r={b.rate} /><span className="num">{pct(b.rate)}</span></dd>
             </div>
           ))}
         </dl>
-        {p.win_rate_with_op.n > 0 && (
+        {win.rate && win.rate.n > 0 && (
           <p className="aside">
-            They win <b>{pct(p.win_rate_with_op)}</b> of rounds with one, against{' '}
-            <b>{pct(p.win_rate_full_buy_without_op)}</b> on full buys without.
+            They win <b>{pct(win.rate)}</b> of full-buy rounds with one, against <b>{pct(win.value.without)}</b> without.
+            That’s an association, not proof the rifle caused it.
           </p>
         )}
+        <ShowRounds n={poss.evidence_counts.supporting + poss.evidence_counts.contrary} onClick={() => onEvidence({
+          metric: poss.metric, claim: `Operator in ${poss.rate?.k} of ${poss.rate?.n} full-buy rounds.`,
+          supportingLabel: `With Operator (${poss.evidence_counts.supporting})`,
+          contraryLabel: `Without (${poss.evidence_counts.contrary})`,
+        })} />
       </section>
 
       {main && (
         <section>
           <h3>Who carries it</h3>
           <p className="claim">
-            <b>{main.name}</b> has it in <b>{pct(main.share)}</b> of their Operator rounds, mostly on {cap(main.top_agent)}.
+            <b>{main.name}</b> has it in <b>{pct(main.rate)}</b> of their Operator rounds, mostly on {cap(main.agent)}.
           </p>
-          <Evidence r={main.share} unit="Operator rounds" />
+          <Evidence r={main.rate} unit="Operator rounds" />
           <ul className="carriers">
-            {p.carriers.slice(0, 5).map((c) => (
+            {hold.breakdown.slice(0, 5).map((c) => (
               <li key={c.player_id}>
                 <button aria-pressed={activePlayer === c.player_id}
                         onClick={() => onPlayer(activePlayer === c.player_id ? null : c.player_id)}>
                   <span className="who">{c.name}</span>
-                  <span className="agents">{c.agents.map(cap).join(', ')}</span>
-                  <Bar r={c.share} />
-                  <span className="num">{c.rounds}</span>
+                  <span className="agents">{(c.agents as string[]).map(cap).join(', ')}</span>
+                  <Bar r={c.rate} />
+                  <span className="num">{c.rate.k}</span>
                 </button>
               </li>
             ))}
           </ul>
-          {p.possession_shift.n > 0 && (
-            <p className="aside">
-              In {p.possession_shift.k} of {p.possession_shift.n} Operator rounds someone other than the map's main carrier had it.
-            </p>
+          <p className="hint">Click a player to show only their fights on the map.</p>
+          {shift && shift.n > 0 && (
+            <p className="aside">In {shift.k} of {shift.n} Operator rounds someone other than that map’s main carrier had it.</p>
           )}
+          <ShowRounds n={hold.evidence_counts.supporting + hold.evidence_counts.contrary} onClick={() => onEvidence({
+            metric: hold.metric, claim: `${main.name} carries it in ${main.rate.k} of ${main.rate.n} Operator rounds.`,
+            supportingLabel: `${main.name} (${hold.evidence_counts.supporting})`,
+            contraryLabel: `Someone else (${hold.evidence_counts.contrary})`,
+          })} />
         </section>
       )}
 
-      {kills > 0 && (
+      {kills > 0 && top && (
         <section>
           <h3>When it fires</h3>
           <p className="claim">
-            <b>{pct(p.kill_timing[topBucket].share)}</b> of their Operator kills come {topBucket === '60s+' ? 'after 60 seconds' : `in the ${BUCKET_LABEL[topBucket]} window`}: {timingRead}.
+            <b>{pct(time.rate)}</b> of their Operator kills come {top === '60s+' ? 'after 60 seconds' : `in the ${BUCKET_LABEL[top]} window`}: {timingRead}.
           </p>
-          <Evidence r={p.kill_timing[topBucket].share} unit="Operator kills" />
+          <Evidence r={time.rate} unit="Operator kills" />
           <div className="timing" role="group" aria-label="Filter the map by round time">
-            {BUCKETS.map((b) => {
-              const t = p.kill_timing[b]
-              const on = buckets.has(b)
+            {time.breakdown.map((b) => {
+              const k = b.bucket as Bucket
               return (
-                <button key={b} aria-pressed={on} onClick={() => onBucket(b)} className="tbin">
-                  <span className="tcol" style={{ height: `${(t.share.p ?? 0) * 100}%`, background: timeColor(BUCKET_MID[b]) }} />
-                  <span className="tlabel">{BUCKET_LABEL[b]}</span>
-                  <span className="num">{t.kills}</span>
+                <button key={k} aria-pressed={buckets.has(k)} onClick={() => onBucket(k)} className="tbin">
+                  <span className="tcol" style={{ height: `${(b.rate.p ?? 0) * 100}%`, background: timeColor(BUCKET_MID[k]) }} />
+                  <span className="tlabel">{BUCKET_LABEL[k]}</span>
+                  <span className="num">{b.rate.k}</span>
                 </button>
               )
             })}
           </div>
-          <p className="hint">Time counts from the end of the buy phase. Click a column to show only those fights on the map.</p>
+          <p className="hint">
+            Time counts from the end of the buy phase. {time.value.post_plant?.k ?? 0} of {kills} kills came after a plant.
+            Click a column to show only those fights on the map.
+          </p>
+          <ShowRounds n={time.evidence_counts.supporting} onClick={() => onEvidence({
+            metric: time.metric, bucket: top, claim: `Rounds with an Operator kill in the ${BUCKET_LABEL[top]} window.`,
+            supportingLabel: `${BUCKET_LABEL[top]} (${time.evidence_counts.supporting})`,
+            contraryLabel: `Other windows only (${time.evidence_counts.contrary})`,
+          })} />
         </section>
       )}
 
-      {delta != null && fwds.length >= 5 && (
+      {open.rate && open.rate.n > 0 && (
+        <section>
+          <h3>Opening duels</h3>
+          <p className="claim">
+            In Operator rounds the rifle takes the first kill <b>{pct(open.rate)}</b> of the time; the holder dies first in{' '}
+            <b>{pct(open.value.holder_died_first)}</b>.
+          </p>
+          <Evidence r={open.rate} unit="Operator rounds with a first kill" />
+          <ShowRounds n={open.evidence_counts.supporting + open.evidence_counts.contrary} onClick={() => onEvidence({
+            metric: open.metric, claim: `Operator took the first kill in ${open.rate?.k} of ${open.rate?.n} rounds.`,
+            supportingLabel: `Operator opened (${open.evidence_counts.supporting})`,
+            contraryLabel: `Didn’t (${open.evidence_counts.contrary})`,
+          })} />
+        </section>
+      )}
+
+      {delta != null && (fv.n ?? 0) >= 5 && (
         <section>
           <h3>How far forward</h3>
           <p className="claim">
@@ -150,16 +186,17 @@ export function Findings({ p, side, activePlayer, onPlayer, buckets, onBucket }:
             the average {sideWord ?? ''} Operator on this map.
           </p>
           <div className="fwd" aria-hidden>
-            <span className="fwd-own">Own spawn</span>
+            <span>Own spawn</span>
             <span className="fwd-track">
-              <span className="fwd-mark league" style={{ left: `${base! * 100}%` }} title="League median" />
-              <span className="fwd-mark team" style={{ left: `${fwdMed! * 100}%` }} title="This team" />
+              <span className="fwd-mark league" style={{ left: `${fv.league_median! * 100}%` }} />
+              <span className="fwd-mark team" style={{ left: `${fv.team_median! * 100}%` }} />
             </span>
-            <span className="fwd-enemy">Enemy spawn</span>
+            <span>Enemy spawn</span>
           </div>
-          <span className="evidence">Median of {fwds.length} engagements. Hollow mark is the league median.</span>
+          <span className="evidence">Median of {fv.n} engagements. The hollow mark is the median for every team on this map and side.</span>
         </section>
       )}
+      {fwd.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
     </div>
   )
 }

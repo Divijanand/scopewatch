@@ -39,3 +39,15 @@ Consequential choices and the evidence behind them. Newest last.
 **Decision:** At buy-phase end, team loadout < 5,000 = eco, < 15,000 = half, otherwise full.
 
 **Evidence:** Corpus team-loadout quantiles (10/25/50/75/90%) = 4,250 / 14,300 / 23,700 / 27,800 / 29,150. Operator rate by bucket: eco 0.2%, half 3.8%, full 28.5%. These are transparent loadout categories, not claims about intent (spec §10.4); "force buy" is not labelled.
+
+## D-007: In-game reversals undone with an undo stack; feed markers stay off it (2026-11-17)
+
+**Decision:** Every applied event is pushed with a state snapshot. A `!` event pops the latest event with the same type, actor id and target id, voids its rows, and restores state when it was the top of the stack. `grid-*` events (`grid-invalidated-series`, `grid-validated-series`, …) are counted but never pushed.
+
+**Evidence:** In series 2787782 a map restart unwinds `team-won-round` → clock → buy end → buy start → round start → game start in exact reverse order. In the first full v2 run, 6,086 of 15,712 reversals looked non-LIFO. In every case inspected (series 2938651, 1,263 of 1,263), exactly one event sat above the match: the `grid-invalidated-series` marker GRID emits just before unwinding. With markers off the stack, that series unwinds 1,263 of 1,263 LIFO. The corpus has 0 unmatched reversals. Regression test: `test_invalidation_marker_does_not_break_lifo_unwind`.
+
+## D-008: Map density stored per series (2026-11-17)
+
+**Decision:** Each series writes its own density grid (`cache/v2/raw/density/{series}.npz`); `engine.maps` sums them.
+
+**Why:** The first version merged grids across runs, so an incremental re-ingest double-counted positions. Per-series files make re-ingest replace, never add. Only casts that pass the quality policy add points.

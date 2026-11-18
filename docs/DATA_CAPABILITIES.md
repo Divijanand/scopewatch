@@ -26,7 +26,7 @@ What the GRID VALORANT feeds and the ability supplement actually contain, as che
 | Capability | State | Evidence and notes |
 |---|---|---|
 | Reversal matching | supported | Every reversal in the sample (548/548) matched an earlier event with the same type (minus `!`), actor id and target id. Reversed types include damage (160), kills (49), ability uses (166), pickups and drops, round start/end, freeze time and game start. |
-| Current pipeline v1 | **gap** | v1 ignores reversals: reversed kills, hits and rounds are still counted. Engine v2 must undo them (LIFO per type/actor/target). The size of the effect on each metric still needs measuring once v2 exists. |
+| Reversal handling (engine v2) | supported | Undo stack (DECISIONS D-007). Full corpus: 15,712 reversals, 0 unmatched. Effect against v1: rounds −253 (−0.59%), kills −1,179 (−0.40%), Operator/Outlaw kills −43 (−0.31%), plus 5,244 casts whose GRID event was reversed. See VALIDATION.md for the final parser 2.0.1 numbers. |
 
 ## Inventory and weapons
 

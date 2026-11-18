@@ -2,54 +2,32 @@
 
 Working, partial, and planned items. Only "Working" items are claimed anywhere else (README, Devpost story, video).
 
-## Working (v1 prototype)
+## Working (engine v2)
 
 | Item | Evidence |
 |---|---|
-| Streaming extraction of all 857 VALORANT series, 10 workers, ~20 min | 857 ok / 0 failed (`cache_extract.log`) |
-| Tables: loadouts, rounds, engagements, casts, spawns; rolled-back *maps* dropped via `meta/games.csv` | Row counts printed by `pipeline.build` |
-| Data-drawn map outlines for 12 maps | Haven outline shows lanes, courtyard, walls (visual check) |
-| Operator team profile with Wilson intervals | Checked by hand on Sentinels / Cloud9 / Cloud9 GC (Lotus) |
-| FastAPI + React UI: team, map, side filters; sightline map; findings column | Browser check 2026-11-17 |
+| Streaming ingest of all 857 series with an undo stack for reversals, phase clocks (buy, pre/post-plant, post-round), position-repeat flags, cast quality policy | `engine/ingest`; 857 ok / 0 failed; 20 synthetic tests |
+| Source manifest: per-series checksums, parser version, dataset commit, reconciliation counts; idempotent re-runs; quarantine of malformed lines | `cache/v2/manifest.parquet`; re-run skips unchanged series; `test_malformed_lines_are_quarantined_not_fatal` |
+| Analytical store with round facts (win type, plant), team rounds with `inventory_known`, opening kills, spawns | `engine/store.py` |
+| Metric registry: 6 versioned Operator metrics with n/N, unknowns, Wilson intervals, supporting/contrary round keys | `engine/metrics`; 6 contract tests on hand-built tables; `docs/METRICS.md` generated from code |
+| Coverage report per filter (rounds, dates, patches, unknown inventory, retracted records, position repeats, cast quality) | `engine/coverage.py` |
+| API with envelopes (`data, coverage, warnings, definition_versions, dataset_revision, parser_version, filter_hash`): catalog, coverage, tendencies, spatial layer, paginated evidence, round context | `api/server.py`; endpoint check on real data |
+| UI: findings with sample sizes and ranges, "Show the rounds" evidence drawer (supporting / contrary), round timeline, "How this is measured", coverage strip, player and time filters linked to the map | Browser check 2026-11-17: Cloud9, Lotus defense, OXY 12 of 15 Operator rounds → 12 rounds → round 30 timeline |
 
-## Known gaps in v1 (fixed by engine v2)
+## Partial
 
-1. In-game reversals (`!` events) not undone (DATA_CAPABILITIES): reversed kills, hits and rounds count.
-2. No source manifest, parser version, reconciliation counts or quarantine; re-runs overwrite silently.
-3. Round clock has only buy-phase end; no plant clock or phase (pre-plant / post-plant).
-4. Metrics are ad-hoc SQL in `profile.py`: no registry, version, eligibility rule, or unknown counts.
-5. No evidence drill-down (supporting / contrary rounds), no round context.
-6. No tests or synthetic fixtures.
-7. Position freshness not tracked.
+- Utility branch: casts are ingested with a quality policy (1.5M rows) but there are no metrics or UI yet.
+- Performance: the six metrics take 0.07–0.18 s each (about 0.7 s total) on an idle machine; not yet measured end to end through the API without ingest load.
+- `engagement_weapon_unknown`: 11,024 damage/kill events have no weapon source (likely ability damage); not yet characterised.
 
-## Engine v2 plan
+## Not started (planned, Gates D–F)
 
-Gates follow the master spec §20.
+- Utility metrics and map layer (placeable-ability origins first; aim arrows labelled "cast aim direction").
+- Saved scouting cards with notes (separate SQLite) and packet export.
+- Cohort comparison (recent vs older) and a time-range filter in the UI.
+- Playwright run of the core journey.
+- Judged build behind a login (D-003), methodology, AI_SHOWCASE.md, demo script.
 
-### Gate A: evidence and capability (in progress)
-- [x] Source register, dataset commit
-- [x] Sample capability audit (40 stratified series) → DATA_CAPABILITIES.md
-- [x] First branch decision (D-001)
-- [ ] Full-corpus audit counts produced by the v2 ingest itself
+## Retired
 
-### Gate B: canonical data
-- `engine/ingest`: series reducer as an explicit state machine (game → round → phase), LIFO reversal undo, plant/defuse phase, freshness flags, per-series reconciliation counts (input events, accepted, reversed, excluded with reason), quarantine for malformed records.
-- `engine/schema.py`: typed Arrow schemas for canonical tables, with nullable fields and explicit unknowns.
-- Source manifest: file checksum, dataset commit, parser version. Re-import is idempotent (skip unchanged series).
-- Synthetic fixtures (hand-written, never copied from the corpus) + pytest for reversals, restarts, side swaps, overtime, phase clocks, duplicate team names.
-
-### Gate C: working coaching slice
-- `engine/metrics`: a registry of versioned metric definitions (id, version, population, numerator, denominator, unknowns, unit).
-- Evidence API: every result returns its round keys; drawer with supporting and contrary rounds; round timeline view.
-- Coverage panel per filter (rounds, maps, dates, patches, quality, exclusions).
-- Typed response envelope: `data, coverage, warnings, definition_version, dataset_revision, filter_hash`.
-
-### Gate D: submission quality
-- Utility branch: placeable-ability origins (trapwires, alarm bots, Vyse walls, Chamber trips first), aim arrows labelled "cast aim direction", quality-policy toggle.
-- Saved scouting cards with notes (separate SQLite, not the analytical DuckDB), packet export.
-- Cohort comparison (recent vs older, map vs map) and Cloud9 self-scout.
-- Playwright run of the core journey; performance measured.
-
-### Gate E/F: differentiator and submission
-- Pick one: anti-strat hypothesis cards, or setup-change detection.
-- Methodology, validation report, AI_SHOWCASE.md, demo script, judged build behind a login (D-003).
+`pipeline/` (v1 prototype) stays for reference and for `pipeline.maps.render`, which v2 reuses. v1 didn't undo in-game reversals.
