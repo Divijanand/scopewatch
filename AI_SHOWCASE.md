@@ -27,4 +27,5 @@ A running log, written as the work happens. Each entry names the tool, the task,
 | 2026-11-18 | Junie | Fixes: registered, precomputed holder WPA (0.14–0.19 s), player filter, real logic test with a stub model, deterministic event order | `0ab7120` |
 | 2026-11-18 | Claude Code (integration) | Credited Tour de Force in WPA, rebuilt the scores, made every ranking deterministic (repeat loads differed on ties), cached reports per filter | `2910dbe` |
 | 2026-11-18 | Claude Code | Operator value in the report: headline in points of round-win chance, league comparison, range scale, per-player values | `3ab0119` |
-| 2026-11-18 | Claude Code | Ultimates: 10 s window value vs league, enemy-ult Operator deaths, Ultimates layer; vectorised Junie's bootstrap (same resamples, ~100x faster) | _this commit_ |
+| 2026-11-18 | Claude Code | Ultimates: 10 s window value vs league, enemy-ult Operator deaths, Ultimates layer; vectorised Junie's bootstrap (same resamples, ~100x faster) | `5f4af7e` |
+| 2026-11-18 | Claude Code | Predictability score: best-guess share per habit against every team on the map and side | _this commit_ |

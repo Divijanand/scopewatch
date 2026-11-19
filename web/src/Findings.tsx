@@ -174,6 +174,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const d0 = deaths?.breakdown[0]
   const exe = t['att.executes']
   const wpa = t['op.wpa']
+  const pred = t['team.predictability']
+  const score = pred?.value.score as number | null | undefined
   const wv = wpa?.value as Wpa | undefined
   // most rounds first: a one-round number never headlines
   const wpaPlayers = ([...(wpa?.breakdown ?? [])] as unknown as WpaPlayer[]).sort((a, b) => b.n - a.n || a.player_name.localeCompare(b.player_name))
@@ -201,6 +203,46 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
 
   return (
     <div className="findings">
+      {pred && pred.breakdown.length > 0 && (
+        <section>
+          <h3>How predictable they are</h3>
+          {score != null ? (
+            <p className="claim">
+              More predictable than <b>{score}%</b> of teams on this map{sideWord && <> on {sideWord}</>}.
+              {score >= 70 ? ' Easy to prepare for.' : score <= 30 ? ' Hard to prepare for.' : ''}
+            </p>
+          ) : (
+            <p className="claim">Not enough rounds to compare them with other teams yet.</p>
+          )}
+          <ul className="spots predict">
+            {pred.breakdown.map((b) => (
+              <li key={b.habit}>
+                <button onClick={() => onEvidence({
+                  metric: pred.metric, bucket: b.bucket,
+                  claim: `${b.label}: rounds where they chose ${b.choice}.`,
+                  supportingLabel: `${b.choice} (${b.rate.k})`, contraryLabel: 'Something else',
+                })}>
+                  <span className="where">{b.label}</span>
+                  <span className="detail">
+                    Best guess {b.choice}: right {b.rate.k} of {b.rate.n} ({pct(b.rate)})
+                    {b.league_median != null && `, typical team ${Math.round(b.league_median * 100)}%`}
+                    {b.small_sample && '. Too few rounds to compare'}
+                  </span>
+                  <span className="bar" aria-hidden>
+                    {b.percentile != null && <span className="bar-fill" style={{ width: `${b.percentile}%` }} />}
+                  </span>
+                  <span className="num">{b.percentile ?? '–'}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">
+            For each habit: if an opponent always guessed their most common choice, how often they’d be right. The number on
+            the right is the percentage of other teams on this map and side that are less predictable. Click a habit to open those
+            rounds. Predictable isn’t bad on its own; it’s what an opponent can prepare for.
+          </p>
+        </section>
+      )}
       {wv && wv.n > 0 && (
         <section>
           <h3>What the Operator is worth</h3>

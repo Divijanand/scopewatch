@@ -158,6 +158,18 @@ Shared definitions:
 - **Caveat:** Association, not cause.
 - **Caveat:** The model also scores the series it was trained on.
 
+## How predictable they are (`team.predictability` v1)
+
+**Question:** If an opponent always guessed this team's most common choice, how often would they be right, compared with other teams on this map and side?
+
+- **Population:** The team's rounds on one map and side; each habit counts the rounds where it was observed
+- **Numerator:** Rounds where the team made its most common choice
+- **Unit:** rounds
+- **Caveat:** Habits: where the first fight involving the team happens (nearest callout of the team's player), when it happens (15 s windows), which site they plant on attack, and where the first Operator shot is taken.
+- **Caveat:** The score is the share of other teams they are more predictable than, averaged over the habits with enough rounds. Teams with fewer than 12 rounds for a habit aren't compared.
+- **Caveat:** A small sample makes anyone look predictable: the team's own result is flagged below 12 rounds.
+- **Caveat:** Predictable isn't bad on its own: a default that wins is a default for a reason. It's what an opponent can prepare for.
+
 ## Ultimates (`ult.usage` v1)
 
 **Question:** Which ultimates does the team use on this map and side, when, and what happens in the 10 s after?

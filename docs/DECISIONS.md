@@ -174,3 +174,20 @@ The Utility view can show one agent's whole kit, each ability drawn by its mode.
 - **Buy-phase ult casts are left out.** About half of all Viper's Pit casts are recorded in the buy phase and no other ult is, which looks like a recording artefact.
 
 **Performance:** The series bootstrap is now vectorised (the same resamples, about 100× faster). The league baseline is cached per map and side.
+
+## D-018: Predictability as "how often the best guess is right", against other teams (2026-11-18)
+
+**Decision:** `team.predictability` looks at four habits per map and side:
+- where the team's first fight happens;
+- when it happens (15 s windows);
+- which site they plant (attack only);
+- where the first Operator shot is taken.
+
+For each habit, the team's most common choice is the opponent's best guess, and its share of rounds is how often that guess would be right. The comparison is with every other team on the same map and side that has at least 12 rounds for that habit, giving the share of teams that are less predictable. The score averages that over the habits with enough rounds.
+
+**Why:** It's the self-scout question an analyst asks ("how easy are we to anti-strat?"), in a form a coach can read without statistics: "Best guess A site, right 55 of 120, typical team 47%".
+
+**Limits:**
+- Small samples make anyone look predictable, so habits under 12 rounds are flagged and kept out of the score, and teams under 12 rounds aren't used as comparisons.
+- Ties count as not less predictable, which is conservative.
+- Predictable isn't bad on its own; the UI says so.
