@@ -1,6 +1,6 @@
-# Fly.io settings for the hosted demo. Set the app name with: fly launch --no-deploy --copy-config
+# Fly.io settings for the hosted demo (app created with: fly apps create scopewatch-c9 --org personal)
 # The password is a secret, never in this file:  fly secrets set SCOPEWATCH_PASSWORD=...
-app = "scopewatch-demo"
+app = "scopewatch-c9"
 primary_region = "sjc"
 
 [build]
