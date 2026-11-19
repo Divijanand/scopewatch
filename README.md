@@ -43,15 +43,24 @@ your-folder/
 git clone --filter=blob:none --sparse https://github.com/cloud9esports/stl-hackathon-2026-grid-starter.git
 cd stl-hackathon-2026-grid-starter && git sparse-checkout set val val-ability-supplements meta && cd ..
 cd scopewatch
+python -m venv .venv && .venv/Scripts/activate    # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-python -m engine.ingest.run       # ~20 min on 10 workers; re-runs skip unchanged series
-python -m engine.store            # analytical DuckDB
-python -m engine.maps             # map outlines
+
+# Build everything once, in this order (about 30 minutes; every step is safe to re-run)
+python -m engine.minimaps         # in-game minimaps and callouts (valorant-api.com) into cache/
+python -m engine.ingest.run       # GRID feeds -> per-series parquet (~20 min on 10 workers)
+python -m engine.maps             # map images and transforms
+python -m engine.store            # analytical DuckDB: weapons filled in, positions named by callout
+python -m engine.maps             # again, now checked against plant and spawn landmarks
+python -m engine.model.winprob    # win-probability model (~3 min) -> docs/MODEL_WINPROB.md
+python -m engine.model.wpa        # Operator value scores (~4 min)
+
+# Run it
 uvicorn api.server:app --port 8000
 cd web && npm install && npm run dev   # http://localhost:5173
 ```
 
-Set `STL_DATA_DIR` if the data lives somewhere else. Run the tests with `python -m pytest tests`; they use synthetic feeds only.
+Stop the API before re-running `engine.store`, because DuckDB allows one writer. Set `STL_DATA_DIR` if the data lives somewhere else. Run the tests with `python -m pytest tests`; they use synthetic data only. In PyCharm, every step above is also a shared run configuration. Working on the code with others: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Data license
 

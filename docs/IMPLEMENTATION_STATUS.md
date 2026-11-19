@@ -33,12 +33,21 @@ Working, partial, and planned items. Only "Working" items are claimed anywhere e
 ## Partial
 
 
-## Not started (planned, Gates D–F)
+## Not started (claim one by adding your name)
 
-- Saved scouting cards with notes (separate SQLite) and packet export.
-- Cohort comparison (recent vs older) and a time-range filter in the UI.
-- Playwright run of the core journey.
-- Methodology write-up, demo script and video. Before judging (Jan 27): keep one machine running (`min_machines_running = 1`).
+**Must-have for the submission (pass/fail)**
+- Demo video, 3 minutes, public on YouTube, no copyrighted music. Owner: _unclaimed_
+- Devpost write-up: story, which JetBrains tools did what, methodology. Owner: _unclaimed_
+- Before judging (Jan 27): keep one demo machine running (`min_machines_running = 1`); judges' login in Devpost's judges-only field. Owner: _unclaimed_
+
+**Features and evidence**
+- Next-round predictor (site, Operator buy) with small samples pulled toward the league, tested against "always guess their most common choice". Owner: _unclaimed_
+- Deep-learning comparison: a sequence model against the gradient-boosted win-probability model on held-out series; ship only if it wins. Owner: _unclaimed_
+- vlr.gg cross-check by hand: about 20 maps' kills and rounds against public scoreboards, written up in VALIDATION.md. Owner: _unclaimed_
+- Saved scouting cards with notes, and a one-page packet export per map. Owner: _unclaimed_
+- Recent-vs-older comparison and a date-range filter in the UI. Owner: _unclaimed_
+- Playwright run of the core journey. Owner: _unclaimed_
+- Miks's abilities classified (they show as "used from" until then). Owner: _unclaimed_
 
 ## Retired
 
