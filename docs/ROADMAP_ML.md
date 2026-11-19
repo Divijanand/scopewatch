@@ -11,7 +11,7 @@ What we're building, in order, and why. Definitions are in [ML_TAXONOMY.md](ML_T
 - A data audit script producing `docs/DATA_AUDIT.md`: feature availability (first pass in ML_TAXONOMY.md §2), rare states (1v4 retakes, eco wins, 5v5 post-plants), drift by patch (win rates and feature distributions), the 1 Hz series, reversals.
 - **Done when:** every feature family has an availability figure, and every task has a list of the states it rarely sees.
 
-## Step 3: bootstrapping without breaking accuracy or precision (first pass done 2026-11-19; two follow-ups)
+## Step 3: bootstrapping without breaking accuracy or precision (done 2026-11-19)
 - Resample **whole series** (block bootstrap), only from the split being measured; the test set never changes.
 - Two uses: **ranges** on every reported number, and **bootstrap ensembles** (20–50 models on resampled training series) that give a spread per prediction. Wide spread = "the model doesn't know this state".
 - **Done when:** our 90% ranges contain the held-out truth about 90% of the time (`coverage`). If they don't, the bootstrap is wrong and we fix it before going on.
@@ -19,9 +19,9 @@ What we're building, in order, and why. Definitions are in [ML_TAXONOMY.md](ML_T
   - Series bootstrap coverage is 86–88% (80% with few series), against 70–74% for the naive one. That's close, but under 90%.
   - A 20-model ensemble improves log loss slightly beyond noise (0.3778 → 0.3770).
   - The ensemble spread is **not yet** a usable "uncertain" signal: rare states got narrower bands in probability points.
-- **Follow-ups before step 4:**
-  - (a) a small-sample or BCa correction, re-checked to reach 90% coverage;
-  - (b) measure the ensemble spread on the log-odds scale, comparing states with similar predictions.
+- **Follow-ups, both closed:**
+  - (a) ranges now use a t interval with a small-sample correction: 88–91% coverage from 4 to 60 series, against 75–87% for the percentile interval (D-020);
+  - (b) on the log-odds scale, within the same band of predicted win chance, the models disagree 1.08–1.25× more about rare states. That's the right direction but a weak signal, so the spread isn't a product flag; thin states are flagged by training count.
 
 ## Step 4: everything, not only the Operator
 - Add the feature families in ML_TAXONOMY.md §2 to the gradient-boosted model first: per-player economy, alive by role, utility used so far, ults used, comp (roles and embeddings), score and round number, map, patch.

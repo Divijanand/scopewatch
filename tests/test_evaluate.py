@@ -88,3 +88,16 @@ def test_ensemble_returns_a_band_per_row():
     out = bootstrap.predict_ensemble(models, df.head(10))
     assert len(models) == 4 and out["mean"].shape == (10,)
     assert (out["lo"] <= out["mean"] + 1e-9).all() and (out["mean"] <= out["hi"] + 1e-9).all()
+
+
+def test_t_interval_reaches_ninety_percent_even_with_few_series():
+    from engine.model import bootstrap
+    for groups, seed in [(6, 11), (15, 12)]:
+        r = bootstrap.simulate_coverage(n_sims=300, n_groups=groups, per_group=8, seed=seed)
+        assert 0.86 <= r["series_coverage"] <= 0.95            # our default lands near the 90% it claims
+        assert r["series_coverage"] >= r["percentile_coverage"]  # and never below the plain percentile interval
+
+
+def test_a_single_series_gives_no_range():
+    from engine.metrics.core import bootstrap_mean
+    assert bootstrap_mean([1.0, 2.0, 3.0], ["S1", "S1", "S1"]) == (2.0, 2.0)

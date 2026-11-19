@@ -205,3 +205,13 @@ For each habit, the team's most common choice is the opponent's best guess, and 
 - Without a password, the server refuses to start.
 
 **Also found:** The production build's typecheck (`tsc -b`) caught errors the command we'd been using (`tsc --noEmit -p .`) never checked. One was a real bug: selecting a callout in "Where they play it" or "Where it dies" never registered, because a metric id was compared with a metric object. Fixed. AGENTS.md and Junie's guidelines now use `tsc -b`.
+
+## D-020: Every range uses a t interval on the series bootstrap (2026-11-19)
+
+**Decision:** `core.bootstrap_mean` now returns mean ± t(0.95, G−1) × bootstrap standard error × √(G/(G−1)), where G is the number of series. Before, it returned the 5th–95th percentile of the resampled means, which is still available as `method="percentile"`. With a single series it returns no range. This affects every range shown in Scopewatch: Operator value per team and player, and the ultimate windows.
+
+**Why:** Step 3 of the ML roadmap checked whether our "likely" ranges are honest, on simulated data with a known truth and the same series structure as ours. The percentile interval covered only 79% at 6 series and 75% at 4 when it claimed 90%.
+
+**Evidence:** With 600 simulations per row (EVAL_BOOTSTRAP.md), the t interval covered 88% at 60 series, 91% at 15, 89% at 6 and 90% at 4. The percentile interval covered 87%, 88%, 79% and 75%. Resampling rounds as if independent covered about 70% at every size.
+
+**Effect:** Ranges are slightly wider for small samples, which is the honest direction. Centre values are unchanged.

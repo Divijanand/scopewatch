@@ -15,18 +15,22 @@ from dataclasses import asdict, dataclass, field
 Z95 = 1.96
 SMALL_SAMPLE = 10
 
-def bootstrap_mean(values: list[float], groups: list[str], n=1000, seed=0) -> tuple[float, float]:
+def bootstrap_mean(values: list[float], groups: list[str], n=1000, seed=0, method: str = "t") -> tuple[float, float]:
     """90% interval (lo, hi) of the mean, resampling whole groups (series) with replacement.
 
-    Same resamples as the original loop version (one rng.choice per replicate, drawn as one array);
-    each replicate's mean comes from per-group sums and counts, so it's about 100x faster.
+    method="t" (default): mean ± t(0.95, G-1) × bootstrap SE × sqrt(G/(G-1)), with G = number of groups.
+        On clustered data with a known truth it covers 90–91.5% from 4 to 60 groups (docs/EVAL_BOOTSTRAP.md);
+        the plain percentile interval falls to 81% at 6 groups and 75% at 4.
+    method="percentile": the 5th–95th percentile of the resampled means (kept for comparison).
+    With a single group nothing can be estimated, and (mean, mean) is returned: callers must not show it as a range.
+    Resamples are drawn as one array; each replicate's mean comes from per-group sums and counts.
     """
     if not values:
         return 0.0, 0.0
     rng = np.random.default_rng(seed)
     unique_groups = sorted(set(groups))
-    if not unique_groups:
-        m = float(np.mean(values))
+    m = float(np.mean(values))
+    if len(unique_groups) < 2:
         return m, m
     gi = {g: i for i, g in enumerate(unique_groups)}
     idx = np.fromiter((gi[g] for g in groups), dtype=np.int64, count=len(groups))
@@ -35,7 +39,17 @@ def bootstrap_mean(values: list[float], groups: list[str], n=1000, seed=0) -> tu
     counts = np.bincount(idx, minlength=len(unique_groups)).astype(float)
     draws = rng.choice(len(unique_groups), size=(n, len(unique_groups)), replace=True)
     means = sums[draws].sum(axis=1) / counts[draws].sum(axis=1)
-    return float(np.percentile(means, 5)), float(np.percentile(means, 95))
+    if method == "percentile":
+        return float(np.percentile(means, 5)), float(np.percentile(means, 95))
+    g = len(unique_groups)
+    half = _student_t_95(g - 1) * float(means.std(ddof=1)) * float(np.sqrt(g / (g - 1)))
+    return m - half, m + half
+
+
+def _student_t_95(df: int) -> float:
+    """95th percentile of Student's t with df degrees of freedom (one side of a 90% interval)."""
+    from scipy import stats
+    return float(stats.t.ppf(0.95, df))
 
 
 def ranked(counter, n=None):
