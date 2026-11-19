@@ -27,6 +27,20 @@ What we're building, in order, and why. Definitions are in [ML_TAXONOMY.md](ML_T
 - Add the feature families in ML_TAXONOMY.md §2 to the gradient-boosted model first: per-player economy, alive by role, utility used so far, ults used, comp (roles and embeddings), score and round number, map, patch.
 - Ablations: each family on and off, so we know what each one is worth.
 - **Done when:** a richer T1 beats the current model on held-out series by the step 1 rule, and T2/T3 have first models against their baselines.
+- **First result** (Junie, [EVAL_T1_FEATURES.md](EVAL_T1_FEATURES.md); baseline fix pending review): no family improves T1 beyond noise. That's expected for *utility used*: utility's effect mostly shows up in kills, which the model already sees through who's alive, and a count of casts says nothing about how good they were. This is not a verdict on utility; steps 4b and 4c test it where it acts.
+
+## Step 4b: utility remaining (what each team still has)
+- **Question:** who wins from here, given what each side still has, not what it has used? In a post-plant 2v2, whether the defense still holds a smoke and a flash for the retake should matter, and who's alive can't show it.
+- **Features:** per side, smokes, flashes and stuns, recon, and ults still available. Each agent's kit charges (from the agent's ability list and charges per round) minus what they've cast this round, counting only living players. Charges per ability are a small, cited table in `engine/abilities.py`. Where a charge count is uncertain (abilities that recharge over time), it's flagged and tested both ways.
+- **No peeking:** only casts at or before the state's time.
+- **Done when:** the ablation against the step 4 baseline is reported, **overall and for post-plant states separately**, where utility for the retake should matter most. A coach-facing number follows only if it beats the baseline beyond noise there. For example: "for this team, holding a smoke for the retake is worth +X points".
+
+## Step 4c: fight-level models (where utility acts)
+- **Question:** who wins this fight, given what happened just before it? This measures utility before it turns into a kill.
+- **Data:** a fight = the first damage between two players until one dies or 3 s pass with no damage. Fights come from `engagements` (attacker, victim and timing are all there). Features: whose utility was cast within the few seconds before (flash or stun, smoke, recon, ult; caster near the fight using caster positions; for damaging utility, the hit itself), numbers advantage at the moment, weapons, economy, side, plant, map, and who peeked first where position data allows.
+- **Model and evaluation:** gradient boosting on fights; series split; step 1 measures; baseline = the same model without the utility features.
+- **What a coach gets:** "when this team flashes before peeking A Main they win the fight X% against Y% dry". Shown with the n behind it, compared with the league, as association, not cause. Teams flash when they intend to fight, which is why the league comparison and the matched baseline matter.
+- **Done when:** the utility features' effect on fight outcomes is measured beyond noise (or shown not to be), and the per-team "with utility vs without" numbers have honest ranges (D-020).
 
 ## Step 5: synthetic data, as a controlled experiment
 - Our position: synthetic data **tests**; as **training** data it's an experiment. A simulator's rules become what the model learns, and any weight shifts calibration toward the simulator.
