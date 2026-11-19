@@ -15,18 +15,9 @@ import numpy as np
 
 from engine.config import DB_PATH, ROOT
 from engine.model import winprob
+from engine.roles import ROLE
 
 THIN = 200          # fewer training states than this in a game state = thin for T1
-ROLE = {
-    "jett": "duelist", "raze": "duelist", "reyna": "duelist", "phoenix": "duelist", "yoru": "duelist",
-    "neon": "duelist", "iso": "duelist", "waylay": "duelist",
-    "sova": "initiator", "breach": "initiator", "skye": "initiator", "kay/o": "initiator", "fade": "initiator",
-    "gekko": "initiator", "tejo": "initiator",
-    "brimstone": "controller", "omen": "controller", "viper": "controller", "astra": "controller",
-    "harbor": "controller", "clove": "controller", "miks": "controller",
-    "sage": "sentinel", "cypher": "sentinel", "killjoy": "sentinel", "chamber": "sentinel", "deadlock": "sentinel",
-    "vyse": "sentinel", "veto": "sentinel",
-}
 
 
 def pct(k, n):
