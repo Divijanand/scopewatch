@@ -35,7 +35,7 @@ A running log, written as the work happens. Each entry names the tool, the task,
 
 ## What we learned working with Junie
 
-Our honest experience, as feedback for JetBrains. Junie ran inside PyCharm 2025.3 on the hackathon's JetBrains AI Ultimate licence, as the "Junie" agent in AI Assistant → Agents. Model: _fill in from Junie's settings_.
+Our honest experience, as feedback for JetBrains. Junie ran inside PyCharm 2025.3 on the hackathon's JetBrains AI Ultimate licence, as the "Junie" agent in AI Assistant → Agents. Model: we never picked one. The agent's model setting was **"auto"**, and on both days we used Junie (2026-11-18 and 19) PyCharm's log shows the Junie plugin's default primary model as **`gemini-3-flash-preview`**. Junie's own session logs weren't kept, so we can't confirm which model handled each request. Everything above was done on the default, not a frontier model we chose.
 
 ### How we worked
 Every Junie task was a **written brief**: goal, files, constraints, what "done" means, and the exact checks to run. Junie followed the project's `AGENTS.md` (data-licence rules, test and doc checklist). **Claude Code reviewed every result** against the brief, by reading the diff, running the tests and **re-running the outputs independently**. Findings went back to Junie as the next brief. Three features went through this loop:
