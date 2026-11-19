@@ -39,6 +39,7 @@ def test_post_round_kill_excluded():
     con.execute("CREATE TABLE engagements (round_key TEXT, t_round DOUBLE, vic_side TEXT, vic_id TEXT, kind TEXT, phase TEXT)")
     con.execute("CREATE TABLE objectives (round_key TEXT, t_round DOUBLE, kind TEXT)")
     con.execute("CREATE TABLE player_rounds (round_key TEXT, player_id TEXT, team_id TEXT, side TEXT, has_op BOOLEAN)")
+    con.execute("CREATE TABLE casts (round_key TEXT, t_round DOUBLE, side TEXT, ability TEXT, phase TEXT, ts_ms BIGINT)")
     
     con.execute("INSERT INTO rounds VALUES ('G1:1', 'S1', 'attacker')")
     con.execute("INSERT INTO team_rounds VALUES ('G1:1', 'attacker', 20000), ('G1:1', 'defender', 20000)")
@@ -65,6 +66,7 @@ def test_feature_building():
     con.execute("CREATE TABLE engagements (round_key TEXT, t_round DOUBLE, vic_side TEXT, vic_id TEXT, kind TEXT, phase TEXT)")
     con.execute("CREATE TABLE objectives (round_key TEXT, t_round DOUBLE, kind TEXT)")
     con.execute("CREATE TABLE player_rounds (round_key TEXT, player_id TEXT, team_id TEXT, side TEXT, has_op BOOLEAN)")
+    con.execute("CREATE TABLE casts (round_key TEXT, t_round DOUBLE, side TEXT, ability TEXT, phase TEXT, ts_ms BIGINT)")
     
     # Round 1: Attacker wins, 1 kill in pre_plant
     con.execute("INSERT INTO rounds VALUES ('G1:1', 'S1', 'attacker')")
@@ -108,3 +110,44 @@ def test_model_ranking():
     # Test baseline too
     probs_b = winprob.predict_wp(baseline, X.iloc[:2])
     assert probs_b[0] > probs_b[1]
+
+
+def test_alive_tracker_handles_revives():
+    t = winprob.AliveTracker()
+    for p in ("a1", "a2"):
+        t.kill("attacker", p)
+    assert t.alive("attacker") == 3
+    t.revive("attacker")                     # Sage brings one back
+    assert t.alive("attacker") == 4
+    t.kill("attacker", "a1")                 # the revived player dies again: no double count
+    assert t.alive("attacker") == 3
+    t.revive("defender")                     # nobody dead on defense: a revive changes nothing
+    assert t.alive("defender") == 5
+    for p in ("a3", "a4", "a5", "a6"):       # more distinct deaths than players never goes below zero
+        t.kill("attacker", p)
+    assert t.alive("attacker") == 0
+
+
+def test_training_rows_never_go_negative_after_a_revive():
+    con = duckdb.connect(":memory:")
+    con.execute("CREATE TABLE rounds (round_key TEXT, series_id TEXT, winner_side TEXT)")
+    con.execute("CREATE TABLE team_rounds (round_key TEXT, side TEXT, team_loadout INTEGER)")
+    con.execute("CREATE TABLE engagements (round_key TEXT, t_round DOUBLE, vic_side TEXT, vic_id TEXT, kind TEXT, phase TEXT)")
+    con.execute("CREATE TABLE objectives (round_key TEXT, t_round DOUBLE, kind TEXT)")
+    con.execute("CREATE TABLE player_rounds (round_key TEXT, player_id TEXT, team_id TEXT, side TEXT, has_op BOOLEAN)")
+    con.execute("CREATE TABLE casts (round_key TEXT, t_round DOUBLE, side TEXT, ability TEXT, phase TEXT, ts_ms BIGINT)")
+    con.execute("INSERT INTO rounds VALUES ('G:1', 'S1', 'defender')")
+    con.execute("INSERT INTO team_rounds VALUES ('G:1', 'attacker', 20000), ('G:1', 'defender', 20000)")
+    # all five defenders die, Sage revives one at 30 s, that player dies again at 40 s
+    for i, t in enumerate([5, 10, 15, 20, 25]):
+        con.execute(f"INSERT INTO engagements VALUES ('G:1', {t}, 'defender', 'd{i}', 'kill', 'pre_plant')")
+    con.execute("INSERT INTO engagements VALUES ('G:1', 40, 'defender', 'd0', 'kill', 'pre_plant')")
+    con.execute("INSERT INTO casts VALUES ('G:1', 30, 'defender', 'resurrection', 'pre_plant', 30000)")
+    original_connect = duckdb.connect
+    duckdb.connect = lambda *args, **kwargs: con
+    try:
+        df = winprob.get_training_data()
+    finally:
+        duckdb.connect = original_connect
+    assert df["defenders_alive"].tolist() == [4, 3, 2, 1, 0, 0]   # the second death of d0 doesn't go to -1
+    assert (df["defenders_alive"] >= 0).all()

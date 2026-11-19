@@ -10,39 +10,28 @@ Run 2026-11-19 with `python -m scripts.data_audit` on the full store. Aggregates
 
 ## 2. Game states the win-probability model sees (T1)
 
-323,903 training states (after each kill and plant) in 856 series, 91 distinct (attackers alive, defenders alive, planted) states.
+323,903 training states (after each kill and plant) in 856 series, 70 distinct (attackers alive, defenders alive, planted) states.
 
 | State | States | Attackers win |
 |---|---|---|
-| 4v5 (first kill to defense) | 21,473 | 30.8% |
-| 5v4 (first kill to attack) | 18,068 | 74.1% |
-| 1v1, no plant | 1,844 | 42.5% |
-| 1v1, planted | 5,316 | 63.3% |
-| 2v1, planted | 7,027 | 90.1% |
-| 1v2, planted | 5,158 | 26.5% |
-| 1v3, planted (attacker clutch) | 3,608 | 8.6% |
-| 4v1, no plant | 2,055 | 99.6% |
-| 1v4, no plant | 5,617 | 1.0% |
-| 1v5, planted | 536 | 1.3% |
+| 4v5 (first kill to defense) | 21,519 | 30.8% |
+| 5v4 (first kill to attack) | 18,112 | 74.1% |
+| 1v1, no plant | 1,824 | 42.2% |
+| 1v1, planted | 5,313 | 63.1% |
+| 2v1, planted | 7,038 | 90.2% |
+| 1v2, planted | 5,145 | 26.0% |
+| 1v3, planted (attacker clutch) | 3,614 | 8.3% |
+| 4v1, no plant | 2,062 | 99.5% |
+| 1v4, no plant | 5,623 | 0.9% |
+| 1v5, planted | 541 | 1.3% |
 
-**Thin states** (fewer than 200 training states): 22 of 91, covering 396 states (0.1% of all). These are where model ranges must be widest, and where synthetic stress tests are useful.
+**Thin states** (fewer than 200 training states): 1 of 70, covering 2 states (0.0% of all). These are where model ranges must be widest, and where synthetic stress tests are useful.
 
 | Attackers | Defenders | Planted | States | Attackers win |
 |---|---|---|---|---|
-| -1 | 0 | yes | 1 | 0.0% |
-| 0 | -1 | yes | 1 | 100.0% |
-| 4 | -1 | no | 2 | 100.0% |
-| 1 | -1 | no | 3 | 100.0% |
-| 2 | -1 | no | 3 | 100.0% |
-| -1 | 5 | no | 4 | 0.0% |
-| 5 | -1 | yes | 4 | 100.0% |
-| 3 | -1 | no | 5 | 100.0% |
-| -1 | 4 | yes | 6 | 0.0% |
-| -1 | 1 | no | 10 | 0.0% |
-| 4 | -1 | yes | 12 | 100.0% |
-| -1 | 4 | no | 13 | 0.0% |
+| 0 | 0 | yes | 2 | 100.0% |
 
-States with a negative alive count (more deaths than players, a data error): 303.
+States with a negative alive count (more deaths than players, a data error): 0.
 
 ## 3. Economy matchups (T4 and every model's prior)
 
@@ -148,7 +137,7 @@ A position-based utility feature must carry the low-rate flag, or be dropped for
 
 ## 7. What this means for each task
 
-- **T1 win probability:** 323,903 states is plenty for gradient boosting and a small sequence model. The risk is the 22 thin states, not the total.
+- **T1 win probability:** 323,903 states is plenty for gradient boosting and a small sequence model. The risk is the 1 thin states, not the total.
 - **T2 next-round site:** 28,978 plants, but per team and map the data is small: 461 of 1,109 (team, map) pairs have fewer than 24 attack rounds (two halves). Team habits must be pooled toward the league (shrinkage), and the baseline to beat is "always their most common site".
 - **T3 Operator buy:** depends on economy and on who's on the team. A roster change resets a team's habits, so recent rounds should count for more.
 - **All tasks:** split by series; check patch-forward; report thin-state performance separately.

@@ -53,6 +53,7 @@ def build_event_wp():
         FROM player_rounds 
         WHERE has_op = true
     """).df()
+    revives_by_round = winprob.load_revives(con)
     con.close()
 
     ops_by_round = {k: g for k, g in player_ops.groupby('round_key')}
@@ -74,51 +75,52 @@ def build_event_wp():
         r_ctx = rounds.loc[round_key]
         r_ops = ops_by_round.get(round_key, pd.DataFrame(columns=['side', 'player_id']))
         
-        att_alive = 5
-        def_alive = 5
+        alive = winprob.AliveTracker()
         att_ops = set(r_ops[r_ops['side'] == 'attacker']['player_id'])
         def_ops = set(r_ops[r_ops['side'] == 'defender']['player_id'])
         is_planted = False
         plant_t = None
-        
-        # State at t=0
-        states_to_predict.append({
-            'seconds_since_buy_phase_end': 0,
-            'planted': False,
-            'seconds_since_plant': 0,
-            'attackers_alive': 5,
-            'defenders_alive': 5,
-            'att_loadout_value': r_ctx.att_loadout,
-            'def_loadout_value': r_ctx.def_loadout,
-            'att_has_op': len(att_ops) > 0,
-            'def_has_op': len(def_ops) > 0
-        })
-        event_metadata.append(('start', round_key, None))
-        
-        for ev in group.itertuples():
-            # Update state based on event
-            if ev.kind == 'kill':
-                if ev.vic_side == 'attacker':
-                    att_alive -= 1
-                    att_ops.discard(ev.vic_id)
-                else:
-                    def_alive -= 1
-                    def_ops.discard(ev.vic_id)
-            elif ev.kind == 'plant':
-                is_planted = True
-                plant_t = ev.t_round
-            
-            states_to_predict.append({
-                'seconds_since_buy_phase_end': ev.t_round,
+
+        def state(t):
+            return {
+                'seconds_since_buy_phase_end': t,
                 'planted': is_planted,
-                'seconds_since_plant': (ev.t_round - plant_t) if is_planted else 0,
-                'attackers_alive': att_alive,
-                'defenders_alive': def_alive,
+                'seconds_since_plant': (t - plant_t) if is_planted else 0,
+                'attackers_alive': alive.alive('attacker'),
+                'defenders_alive': alive.alive('defender'),
                 'att_loadout_value': r_ctx.att_loadout,
                 'def_loadout_value': r_ctx.def_loadout,
                 'att_has_op': len(att_ops) > 0,
                 'def_has_op': len(def_ops) > 0
-            })
+            }
+
+        # State at t=0
+        states_to_predict.append(state(0))
+        event_metadata.append(('start', round_key, None))
+
+        # revives change who is alive (and the win probability) without crediting anyone: they become their own
+        # state, applied after kills at the same moment
+        revives = sorted(revives_by_round.get(round_key, []))
+        ri = 0
+
+        for ev in group.itertuples():
+            while ri < len(revives) and revives[ri][0] < ev.t_round:
+                alive.revive(revives[ri][1])
+                states_to_predict.append(state(revives[ri][0]))
+                event_metadata.append(('revive', round_key, None))
+                ri += 1
+            # Update state based on event
+            if ev.kind == 'kill':
+                alive.kill(ev.vic_side, ev.vic_id)
+                if ev.vic_side == 'attacker':
+                    att_ops.discard(ev.vic_id)
+                else:
+                    def_ops.discard(ev.vic_id)
+            elif ev.kind == 'plant':
+                is_planted = True
+                plant_t = ev.t_round
+
+            states_to_predict.append(state(ev.t_round))
             event_metadata.append(('event', round_key, ev))
 
     print(f"Predicting WP for {len(states_to_predict)} states...")
@@ -129,7 +131,7 @@ def build_event_wp():
     
     for meta_type, rk, ev in event_metadata:
         wp = all_wps[wp_idx]
-        if meta_type == 'start':
+        if meta_type in ('start', 'revive'):   # a new baseline for the next event; nobody is credited
             wp_before = wp
         else:
             results.append({

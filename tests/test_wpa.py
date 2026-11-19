@@ -40,6 +40,10 @@ def test_wpa_logic():
     with MagicMock() as mock_winprob:
         mock_winprob.predict_wp.side_effect = lambda m, df: mock_predict(df)
         mock_winprob.load_model.return_value = model
+        # the real alive counting (revives included); no revives in this round
+        from engine.model import winprob as real_winprob
+        mock_winprob.AliveTracker = real_winprob.AliveTracker
+        mock_winprob.load_revives.return_value = {}
         
         # Monkeypatch engine.model.winprob used in engine.model.wpa
         import engine.model.wpa as wpa_mod

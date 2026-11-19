@@ -4,22 +4,22 @@ Run 2026-11-19 on the held-out **test series** (129 series, 48,584 states), with
 
 | Model | Log loss | Brier | AUC | Calibration error (ECE) |
 |---|---|---|---|---|
-| Logistic baseline (alive counts, planted) | 0.4098 | 0.1335 | 0.8912 | 0.0130 |
-| Gradient boosting (current) | 0.3794 | 0.1239 | 0.9070 | 0.0050 |
+| Logistic baseline (alive counts, planted) | 0.4092 | 0.1333 | 0.8916 | 0.0132 |
+| Gradient boosting (current) | 0.3778 | 0.1237 | 0.9075 | 0.0052 |
 
-**Is gradient boosting really better?** Log-loss difference -0.0303 (90% range over resampled series -0.0337 to -0.0269): **yes, beyond noise**.
+**Is gradient boosting really better?** Log-loss difference -0.0313 (90% range over resampled series -0.0348 to -0.0277): **yes, beyond noise**.
 
 ## Reliability (gradient boosting)
 
 | Predicted bin | Mean predicted | Actual | States |
 |---|---|---|---|
-| 0.0–0.1 | 0.031 | 0.029 | 8,430 |
-| 0.1–0.2 | 0.146 | 0.155 | 3,939 |
-| 0.2–0.3 | 0.252 | 0.258 | 3,567 |
-| 0.3–0.4 | 0.344 | 0.336 | 3,583 |
-| 0.4–0.5 | 0.455 | 0.443 | 2,648 |
-| 0.5–0.6 | 0.552 | 0.550 | 3,770 |
-| 0.6–0.7 | 0.651 | 0.644 | 2,944 |
-| 0.7–0.8 | 0.750 | 0.745 | 4,056 |
-| 0.8–0.9 | 0.854 | 0.857 | 4,335 |
-| 0.9–1.0 | 0.971 | 0.975 | 11,312 |
+| 0.0–0.1 | 0.029 | 0.028 | 8,447 |
+| 0.1–0.2 | 0.148 | 0.160 | 3,982 |
+| 0.2–0.3 | 0.252 | 0.252 | 3,510 |
+| 0.3–0.4 | 0.343 | 0.339 | 3,479 |
+| 0.4–0.5 | 0.454 | 0.438 | 2,710 |
+| 0.5–0.6 | 0.551 | 0.551 | 3,833 |
+| 0.6–0.7 | 0.651 | 0.631 | 2,885 |
+| 0.7–0.8 | 0.750 | 0.747 | 4,047 |
+| 0.8–0.9 | 0.854 | 0.861 | 4,402 |
+| 0.9–1.0 | 0.973 | 0.976 | 11,289 |
