@@ -6,7 +6,7 @@ Working, partial, and planned items. Only "Working" items are claimed anywhere e
 
 | Item | Evidence |
 |---|---|
-| Streaming ingest of all 857 series with an undo stack for reversals, phase clocks (buy, pre/post-plant, post-round), position-repeat flags, cast quality policy | `engine/ingest`; 857 ok / 0 failed; 77 tests in total |
+| Streaming ingest of all 857 series with an undo stack for reversals, phase clocks (buy, pre/post-plant, post-round), position-repeat flags, cast quality policy | `engine/ingest`; 857 ok / 0 failed; 83 tests in total |
 | Source manifest: per-series checksums, parser version, dataset commit, reconciliation counts; idempotent re-runs; quarantine of malformed lines | `cache/v2/manifest.parquet`; re-run skips unchanged series; `test_malformed_lines_are_quarantined_not_fatal` |
 | Analytical store with round facts (win type, plant), team rounds with `inventory_known`, opening kills, spawns | `engine/store.py` |
 | Metric registry: 16 versioned metrics (12 Operator, 1 execute, 1 utility, 1 ultimates, 1 predictability) with n/N, unknowns, Wilson intervals, supporting/contrary round keys | `engine/metrics`; 6 contract tests on hand-built tables; `docs/METRICS.md` generated from code |
@@ -17,6 +17,7 @@ Working, partial, and planned items. Only "Working" items are claimed anywhere e
 | Utility view: setups, smokes, flashes and stuns, and recon as a heatmap of cast positions with aim ticks; findings in callout language with round counts; filter by ability or by spot; rounds behind each spot | `engine/metrics/utility.py`, `web/src/Utility.tsx`; `tests/test_utility.py`; browser check 2026-11-18, Sentinels Haven defense: Zellsis's Cyber Cage at C Site in 27 of 62 rounds |
 | Round win-probability model (built by Junie): gradient boosting against a logistic baseline, split by series; test log loss 0.379 vs 0.410 | `engine/model/winprob.py`, `docs/MODEL_WINPROB.md`; review fixes applied by Junie (no post-round leakage, linear row building); test log loss 0.379 vs 0.410 baseline, report reproduces on retrain |
 | Operator value (WPA, built by Junie): every sniper kill (Operator, Outlaw, Tour de Force) is credited with ΔWP and every holder death is charged; team, league and player means, 90% series-bootstrap intervals for n ≥ 10 | `engine/model/wpa.py`, `engine/metrics/value.py`; `tests/test_wpa.py`; 323,903 events and 18,779 holder rounds scored; 0.14–0.19 s per call. Shown first in the Operator report with a range scale and per-player values (most rounds first; one-round players get no range); browser check 2026-11-18, Cloud9 Lotus defense: −3.3 points (likely −11.2 to +6.3) vs +2.3 league |
+| Hosted demo build: password on every path but /health, refuses to start without a password, noindex, one container (API + built web app), data bundle script, Fly.io config, background warm-up of Cloud9 views | `api/auth.py`, `Dockerfile`, `fly.toml`, `scripts/bundle_demo.py`, `docs/DEPLOY.md`; `tests/test_auth.py`; local run from the bundle checked route by route. **Not deployed yet** (needs your Fly.io account) |
 | Predictability score: for four habits, how often an opponent's best guess would be right, compared with every team on the map and side; overall score; rounds behind each habit | `engine/metrics/predictability.py`; `tests/test_predictability.py`; browser check 2026-11-18, Cloud9 Lotus attack: 25 (A site 55 of 120 vs typical 47%) |
 | Ultimates: usage per ult (rounds with that agent, timing, after a plant), kills, deaths and win-chance swing in the 10 s after, league comparison and range; Ultimates map layer; Operator deaths during an enemy ult | `engine/metrics/ultimates.py`, `op.how_it_dies` v2; `tests/test_ultimates.py`; browser check 2026-11-18, Cloud9 Lotus attack: Fade ult −16.3 (−27.8 to −4.7) vs league 0.0 |
 | Every agent's whole kit in the Utility view: all 111 abilities classified by what their position means (placed, landing, direction, thrown, self, unplaced) | `engine/abilities.py` MODE, `engine/metrics/utility.py`; `tests/test_utility.py`; browser check 2026-11-18, Sentinels Sova on Haven defense |
@@ -37,7 +38,7 @@ Working, partial, and planned items. Only "Working" items are claimed anywhere e
 - Saved scouting cards with notes (separate SQLite) and packet export.
 - Cohort comparison (recent vs older) and a time-range filter in the UI.
 - Playwright run of the core journey.
-- Judged build behind a login (D-003), methodology, AI_SHOWCASE.md, demo script.
+- Deploying the judged build (D-019: ready, needs a Fly.io account), methodology write-up, demo script and video.
 
 ## Retired
 

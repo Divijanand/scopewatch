@@ -28,4 +28,5 @@ A running log, written as the work happens. Each entry names the tool, the task,
 | 2026-11-18 | Claude Code (integration) | Credited Tour de Force in WPA, rebuilt the scores, made every ranking deterministic (repeat loads differed on ties), cached reports per filter | `2910dbe` |
 | 2026-11-18 | Claude Code | Operator value in the report: headline in points of round-win chance, league comparison, range scale, per-player values | `3ab0119` |
 | 2026-11-18 | Claude Code | Ultimates: 10 s window value vs league, enemy-ult Operator deaths, Ultimates layer; vectorised Junie's bootstrap (same resamples, ~100x faster) | `5f4af7e` |
-| 2026-11-18 | Claude Code | Predictability score: best-guess share per habit against every team on the map and side | _this commit_ |
+| 2026-11-18 | Claude Code | Predictability score: best-guess share per habit against every team on the map and side | `4fb9f43` |
+| 2026-11-18 | Claude Code | Password-protected demo container and deploy guide; production build exposed a weak typecheck command and a real callout-selection bug, both fixed | _this commit_ |

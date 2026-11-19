@@ -414,7 +414,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           )}
           <ul className="spots">
             {setups.breakdown.slice(0, 6).map((b) => (
-              <Spot key={b.callout} b={b} focus={focus} metric={setups.metric} onFocus={onFocus}
+              <Spot key={b.callout} b={b} focus={focus} metric={setups.metric.id} onFocus={onFocus}
                     detail={`${list((b.players as { name: string }[]).slice(0, 2).map((p) => p.name))}${b.targets[0] ? ` → ${b.targets[0].callout}` : ''}, ${b.kills} kill${b.kills === 1 ? '' : 's'}`} />
             ))}
           </ul>
@@ -423,9 +423,9 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
             Callouts are the nearest community callout, an approximation.
           </p>
           <ShowRounds n={setups.evidence_counts.supporting} onClick={() => onEvidence({
-            metric: setups.metric, bucket: (focus?.metric === setups.metric ? focus.name : s0.callout),
-            claim: `Rounds whose first Operator shot came from ${focus?.metric === setups.metric ? focus.name : s0.callout}.`,
-            supportingLabel: focus?.metric === setups.metric ? focus.name : s0.callout,
+            metric: setups.metric, bucket: (focus?.metric === setups.metric.id ? focus.name : s0.callout),
+            claim: `Rounds whose first Operator shot came from ${focus?.metric === setups.metric.id ? focus.name : s0.callout}.`,
+            supportingLabel: focus?.metric === setups.metric.id ? focus.name : s0.callout,
             contraryLabel: 'Somewhere else',
           })} />
         </section>
@@ -450,15 +450,15 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           )}
           <ul className="spots">
             {deaths.breakdown.slice(0, 5).map((b) => (
-              <Spot key={b.callout} b={b} focus={focus} metric={deaths.metric} onFocus={onFocus}
+              <Spot key={b.callout} b={b} focus={focus} metric={deaths.metric.id} onFocus={onFocus}
                     detail={`${b.from_[0] ? `from ${b.from_[0].callout}, ` : ''}${(b.weapons as { weapon: string }[]).map((w) => cap(w.weapon)).join(' / ')}, ~${Math.round(b.median_t)}s`} />
             ))}
           </ul>
           <p className="hint">Where a counter-play pays off. Click a callout to show those rounds on the map.</p>
           <ShowRounds n={deaths.evidence_counts.supporting} onClick={() => onEvidence({
-            metric: deaths.metric, bucket: (focus?.metric === deaths.metric ? focus.name : d0.callout),
-            claim: `Rounds where the Operator player died at ${focus?.metric === deaths.metric ? focus.name : d0.callout}.`,
-            supportingLabel: focus?.metric === deaths.metric ? focus.name : d0.callout,
+            metric: deaths.metric, bucket: (focus?.metric === deaths.metric.id ? focus.name : d0.callout),
+            claim: `Rounds where the Operator player died at ${focus?.metric === deaths.metric.id ? focus.name : d0.callout}.`,
+            supportingLabel: focus?.metric === deaths.metric.id ? focus.name : d0.callout,
             contraryLabel: 'Died elsewhere',
           })} />
         </section>

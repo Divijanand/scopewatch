@@ -1,0 +1,11 @@
+# Send the builder only what the image needs (the data bundle is the one exception to "no data")
+*
+!requirements.txt
+!engine/
+!api/
+!pipeline/
+!config/
+!web/dist/
+!cache/demo/
+**/__pycache__
+**/*.pyc

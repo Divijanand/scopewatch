@@ -4,7 +4,7 @@
 
 Scopewatch shows the **in-game minimaps**, using the world→minimap calibration from valorant-api.com (`engine/minimaps.py`), recoloured to the Scopewatch palette (D-009). The **original outline drawn from GRID positions** (`engine/maps.py`) is the fallback for any map without a minimap.
 
-The minimaps are Riot Games artwork, used under Riot's fan-content policy ("Legal Jibber Jabber"). They're fetched into git-ignored `cache/` with `python -m engine.minimaps` and are never committed or redistributed. They're labelled unofficial.
+The minimaps are Riot Games artwork, used under Riot's fan-content policy ("Legal Jibber Jabber"). They're fetched into git-ignored `cache/` with `python -m engine.minimaps` and are never committed or redistributed. They're labelled unofficial. On 2026-11-18 the organisers confirmed on the Cloud9 Discord that the tool and the video may show official VALORANT minimaps via valorant-api.com.
 
 The original policy (outlines only) was reversed on 2026-11-18. Analysts couldn't read the drawn outline, which was also rotated 90° from the in-game minimap.
 

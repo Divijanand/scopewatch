@@ -19,7 +19,7 @@ Scopewatch is a VALORANT scouting tool built on licensed GRID esports data. Read
 - `docs/`: decisions (`DECISIONS.md`, numbered D-xxx), validation, metric definitions (`METRICS.md` is generated: `python -m scripts.gen_metrics_doc`).
 
 ## How to work
-- Run the tests: `python -m pytest tests -q`. Typecheck the UI: `cd web && npx tsc --noEmit -p .`
+- Run the tests: `python -m pytest tests -q`. Typecheck the UI: `cd web && npx tsc -b`
 - A new metric needs: a `MetricDef` with population, numerator and caveats; a contract test on hand-built tables; a regenerated `docs/METRICS.md`; and a line in `docs/IMPLEMENTATION_STATUS.md`.
 - A decision that changes what a number means gets a `D-xxx` entry in `docs/DECISIONS.md` with evidence.
 - Only claim what was checked. `docs/IMPLEMENTATION_STATUS.md` separates working, partial and planned work.

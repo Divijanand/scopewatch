@@ -57,6 +57,10 @@ Set `STL_DATA_DIR` if the data lives somewhere else. Run the tests with `python 
 
 Match data is provided by GRID and is © GRID eSports GmbH and Riot Games, Inc. It's used under the hackathon data license. This repo contains only code: `cache/` and every data or derived file type is git-ignored. Not endorsed by Riot Games.
 
+## Hosted demo
+
+The judged build is a password-protected web app, private to the hackathon judges (organiser-approved; the GRID licence doesn't allow derived data on an open site). Deployment steps: [docs/DEPLOY.md](docs/DEPLOY.md).
+
 ## Built with JetBrains
 
 Open the repo folder in **PyCharm** (2025.3 or later). The project ships with shared run configurations in `.idea/runConfigurations/`:

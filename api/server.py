@@ -7,17 +7,21 @@ Run from the repo root:  uvicorn api.server:app --port 8000
 from __future__ import annotations
 
 import json
+import os
 import threading
+from pathlib import Path
 from functools import lru_cache
 from dataclasses import asdict
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import duckdb
 
+from api import auth
 from engine import vod
 from engine.callouts import load as load_callouts
 from engine.config import DB_PATH, MAPS_DIR
@@ -26,8 +30,11 @@ from engine.metrics import REGISTRY, Filters
 from engine.metrics.operator import ENG_COLS, _op_engagements, spawns as _spawns
 from engine.metrics.utility import agent_kit, layer_items
 
-app = FastAPI(title="Scopewatch", version="2")
+app = FastAPI(title="Scopewatch", version="2",
+              # the hosted demo has no public API docs: everything is behind the judges' password
+              docs_url=None if os.environ.get("SCOPEWATCH_REQUIRE_AUTH") == "1" else "/docs", redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["GET", "PUT", "DELETE"])
+AUTH_ON = auth.install(app)   # password protection for the hosted demo (api/auth.py)
 _local = threading.local()
 
 SIDE = Query(None, pattern="^(attacker|defender)$")
@@ -307,3 +314,37 @@ def map_png(name: str, v: str | None = None):
         if v != cur.get("transform_version"):
             raise HTTPException(409, "Map rebuilt since this page loaded")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "no-cache"})
+
+
+# ------------------------------------------------------------------ warm-up (hosted demo)
+def _warm():
+    """Precompute the reports judges are most likely to open first (Cloud9, every map they played, both
+    sides), so the first click is fast on a small shared CPU. Runs in the background; failures are ignored."""
+    try:
+        teams = con().execute("""SELECT DISTINCT t.team_id, t.map FROM team_rounds t
+                                 WHERE t.team_name ILIKE 'cloud9%' AND t.map IS NOT NULL""").fetchall()
+        for team_id, map_name in teams:
+            for side in ("defender", "attacker"):
+                _tendencies(team_id, map_name, side, None, None, None)
+    except Exception as e:  # noqa: BLE001 - warm-up must never take the server down
+        print(f"warm-up stopped: {e}")
+
+
+@app.on_event("startup")
+def _start_warmup():
+    if os.environ.get("SCOPEWATCH_WARM") == "1":
+        threading.Thread(target=_warm, name="warmup", daemon=True).start()
+
+
+# ------------------------------------------------------------------ the built web app (hosted demo)
+# One service: the API above, and the built React app for every other path. Registered last, so /api wins.
+WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    return PlainTextResponse("User-agent: *\nDisallow: /\n")
+
+
+if WEB_DIST.exists():
+    app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

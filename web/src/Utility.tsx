@@ -223,7 +223,7 @@ function SpotList({ rows, focus, onFocus, max = 8 }: { rows: Row[]; focus: UtilF
   return (
     <ul className="spots">
       {rows.slice(0, max).map((b) => {
-        const on = focus?.ability === b.ability && focus.callout === b.callout
+        const on = focus?.ability === b.ability && focus?.callout === b.callout
         return (
           <li key={b.bucket}>
             <button aria-pressed={on}

@@ -191,3 +191,17 @@ For each habit, the team's most common choice is the opponent's best guess, and 
 - Small samples make anyone look predictable, so habits under 12 rounds are flagged and kept out of the score, and teams under 12 rounds aren't used as comparisons.
 - Ties count as not less predictable, which is conservative.
 - Predictable isn't bad on its own; the UI says so.
+
+## D-019: The judged build is a password-protected container (2026-11-18)
+
+**Decision:** The hosted demo is one container: FastAPI serves both the API and the built web app. HTTP Basic auth covers every path except `/health` (`api/auth.py`). The image sets `SCOPEWATCH_REQUIRE_AUTH=1`, so it refuses to start without `SCOPEWATCH_PASSWORD`. The data bundle (`scripts/bundle_demo.py`, git-ignored `cache/demo/`) holds only what the app reads: the store, the two WPA score files, the map images and index, and the callout list. Fly.io builds the image remotely into its private registry. Steps are in DEPLOY.md.
+
+**Why:** It resolves D-003. On 2026-11-18 the organisers confirmed on the Cloud9 Discord that a password-protected demo visible only to judges is allowed and encouraged. Basic auth needs no user database and works in every browser.
+
+**Evidence:** Run locally from the bundle with the password required:
+- Pages, API calls and map images return 401 without the password or with a wrong one.
+- `/health` returns 200; the API docs page returns 404.
+- With the password: the page, scripts, report and map images return 200, with `X-Robots-Tag: noindex`.
+- Without a password, the server refuses to start.
+
+**Also found:** The production build's typecheck (`tsc -b`) caught errors the command we'd been using (`tsc --noEmit -p .`) never checked. One was a real bug: selecting a callout in "Where they play it" or "Where it dies" never registered, because a metric id was compared with a metric object. Fixed. AGENTS.md and Junie's guidelines now use `tsc -b`.
