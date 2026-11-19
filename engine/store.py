@@ -52,7 +52,10 @@ SELECT p.*, p.game_id || ':' || p.round_no AS round_key,
        CASE WHEN p.team_loadout IS NULL THEN NULL
             WHEN p.team_loadout < 5000 THEN 'eco' WHEN p.team_loadout < 15000 THEN 'half' ELSE 'full' END AS economy,
        g.patch, g.event, g.started_at
-FROM {raw('player_rounds')} p JOIN games g USING (game_id);
+FROM {raw('player_rounds')} p JOIN games g USING (game_id)
+-- phantom entries: listed in the feed's state with no agent, $0 loadout and no events or casts (substitutes or
+-- coaches, 1,228 rows in 64 games). Without this, 1,181 side-rounds would have 6-7 players (D-021).
+WHERE coalesce(p.agent, '') <> '';
 
 CREATE OR REPLACE TABLE objectives AS
 SELECT o.*, o.game_id || ':' || o.round_no AS round_key FROM {raw('objectives')} o JOIN games g USING (game_id);

@@ -22,7 +22,7 @@ T1 exists (gradient boosting, `engine/model/winprob.py`). T2–T5 are new. T4 is
 | **Alive state** | attackers alive, defenders alive, **alive by role** (duelist, initiator, controller, sentinel) | all kills (297,113) | roles come from the agent |
 | **Economy** | team loadout, **per-player money and loadout**, eco/half/full | loadout known in **100%** of 84,980 team rounds (eco 12,082, half 9,674, full 63,224) | possession is the inventory at buy end; there are no purchase events |
 | **Weapons** | Operator/Outlaw holders alive, sniper kills | 18,091 team rounds with one Operator, 320 with two | kill weapon known for **99.96%** (10,853 filled from the matching hit, D-016) |
-| **Team comp** | agent set, roles, comp × map | agent known for **100%** of 426,516 player rounds; **873** distinct comps | very sparse per comp: use role counts and agent embeddings, not one-hot comps |
+| **Team comp** | agent set, roles, comp × map | agent known for **100%** of 425,288 player rounds (after dropping 1,228 phantom entries with no agent, D-021); **831** distinct comps | very sparse per comp: use role counts and agent embeddings, not one-hot comps |
 | **Utility used** | casts so far this round by kind (smoke, flash, stun, recon, setup, movement), ults used | **1,509,064** casts; **99.9%** have a usable position; 37,422 ult casts | 12.6% of casts come from about 1 Hz sampling; landing spots only for damaging utility (D-015) |
 | **Spatial** | positions by callout zone, map control, distance to site | both positions on **100%** of kills; callout named for **99.6%** | positions only at events, not continuous movement |
 | **Objective** | planted, plant site, time since plant | 28,978 plants (68.2% of rounds), 8,462 defuses, 3,689 detonations | |
@@ -59,7 +59,7 @@ A probability model is judged on probabilities, not on hits. "70% and wrong 3 ti
 | **No ult points** | the feed doesn't record ult charge | "ult available" is unknown; we use "ult used so far" |
 | **No comms, crosshair or sound** | not in any feed | out of scope; the VOD covers it |
 | **Patch drift** | 32 patches; agents get buffed and nerfed (Gekko) | patch as a feature, recent-weighted training, a drift check by patch |
-| **Sparse comps and teams** | 873 comps; some teams have few maps | roles and embeddings; pool small teams toward the league |
+| **Sparse comps and teams** | 831 comps; some teams have few maps | roles and embeddings; pool small teams toward the league |
 | **Selection effects** | good teams pick the meta; teams ult when they're about to fight | compare against the league and within teams; association, never cause |
 | **About 1 Hz sampling** in part of the supplement | VCT Americas 2025 | flagged per cast; position features weighted or dropped for it |
 | **Survivorship** | e.g. "kept the Operator → won" | measure value at the decision (WPA), not after the outcome |

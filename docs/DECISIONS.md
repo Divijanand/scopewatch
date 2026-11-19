@@ -215,3 +215,13 @@ For each habit, the team's most common choice is the opponent's best guess, and 
 **Evidence:** With 600 simulations per row (EVAL_BOOTSTRAP.md), the t interval covered 88% at 60 series, 91% at 15, 89% at 6 and 90% at 4. The percentile interval covered 87%, 88%, 79% and 75%. Resampling rounds as if independent covered about 70% at every size.
 
 **Effect:** Ranges are slightly wider for small samples, which is the honest direction. Centre values are unchanged.
+
+## D-021: Phantom roster entries are dropped from player_rounds (2026-11-19)
+
+**Decision:** `engine/store.py` drops `player_rounds` entries with no agent.
+
+**Why:** Reviewing Junie's step 4 work showed 1,181 side-rounds listing 6 or 7 players. The extras are phantom entries: listed in the feed's state with an empty agent, a $0 loadout, and no kills, damage or casts. They're probably substitutes or coaches. There are 1,228 of them, in 64 games. They made a roster-based alive count disagree with the production model, inflated the comp count, and made an earlier availability check ("agents known 100%") wrong, because it tested for null rather than empty text.
+
+**Evidence:** All 1,228 had an empty agent, $0 loadout, 0 events and 0 casts. After the rebuild, 85,048 side-rounds have 5 players. The 8 side-rounds that still have 6 come from one broken game start (rounds 1–3) where nobody has any events. Player-rounds 426,516 → 425,288; distinct team comps 873 → 831.
+
+**Effect:** No metric that counts real activity changes, because phantoms never held an Operator, spent credits or appeared in events. Counts of agents and comps are now correct.
