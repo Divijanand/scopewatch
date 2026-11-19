@@ -62,3 +62,29 @@ def test_paired_difference_finds_a_real_improvement_and_not_noise():
 def test_coverage_measures_accuracy_and_width_of_ranges():
     out = ev.coverage([(0, 2), (0, 2), (5, 6), (1, 1)], [1, 3, 5.5, 1])
     assert out["coverage"] == 0.75 and out["mean_width"] == pytest.approx(1.25)
+
+
+def test_series_bootstrap_is_honest_and_naive_bootstrap_overclaims():
+    from engine.model import bootstrap
+    r = bootstrap.simulate_coverage(n_sims=150, n_groups=40, per_group=8, group_sd=0.2, noise_sd=0.3, seed=3)
+    assert 0.82 <= r["series_coverage"] <= 0.97      # close to the 90% it claims
+    assert r["naive_coverage"] < r["series_coverage"] - 0.15   # resampling rounds as independent overclaims
+
+
+def test_ensemble_returns_a_band_per_row():
+    import pandas as pd
+    from engine.model import bootstrap, winprob
+    rng = np.random.default_rng(4)
+    rows = []
+    for s in range(40):
+        for _ in range(30):
+            a, d = int(rng.integers(1, 6)), int(rng.integers(1, 6))
+            rows.append(dict(series_id=f"S{s}", seconds_since_buy_phase_end=float(rng.uniform(0, 90)), planted=False,
+                             seconds_since_plant=0.0, attackers_alive=a, defenders_alive=d, att_loadout_value=20000,
+                             def_loadout_value=20000, att_has_op=False, def_has_op=False,
+                             label=int(rng.uniform() < a / (a + d))))
+    df = pd.DataFrame(rows)
+    models = bootstrap.train_ensemble(df, k=4, seed=0)
+    out = bootstrap.predict_ensemble(models, df.head(10))
+    assert len(models) == 4 and out["mean"].shape == (10,)
+    assert (out["lo"] <= out["mean"] + 1e-9).all() and (out["mean"] <= out["hi"] + 1e-9).all()
