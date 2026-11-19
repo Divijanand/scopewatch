@@ -204,6 +204,7 @@ export default function App() {
               )}
               {util && (
                 <UtilityFindings layer={util} side={side} def={catalog?.metrics.find((m) => m.id === 'util.placements')}
+                                 ultDef={catalog?.metrics.find((m) => m.id === 'ult.usage')}
                                  focus={utilFocus} onFocus={setUtilFocus} onEvidence={setEvidence} />
               )}
             </div>

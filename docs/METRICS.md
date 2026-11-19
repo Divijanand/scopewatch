@@ -83,7 +83,7 @@ Shared definitions:
 - **Unit:** rounds
 - **Caveat:** Shares can sum above 100% when two players hold one in the same round.
 
-## How it gets broken (`op.how_it_dies` v1)
+## How it gets broken (`op.how_it_dies` v2)
 
 **Question:** When the team's Operator holder dies, was it after enemy flashes or stuns, smokes, or several enemies at once?
 
@@ -93,6 +93,7 @@ Shared definitions:
 - **Caveat:** 'Nearby' = cast by an enemy standing within 35 m of where the holder died. The feed records where utility was thrown from, not where it landed or who it blinded.
 - **Caveat:** Casts without a reliable position (ability-supplement quality) aren't counted, so utility is undercounted.
 - **Caveat:** Swarmed = two or more different enemies hit the holder in the 3 s before the death.
+- **Caveat:** Enemy ult = an enemy used an ultimate in the 10 s before the death, anywhere on the map (ults like Nightfall or Hunter's Fury reach far). Blade Storm, Overdrive and Tour de Force count only once they have hit someone.
 
 ## When it fires (`op.kill_timing` v2)
 
@@ -156,6 +157,18 @@ Shared definitions:
 - **Caveat:** Trades and assists aren't split.
 - **Caveat:** Association, not cause.
 - **Caveat:** The model also scores the series it was trained on.
+
+## Ultimates (`ult.usage` v1)
+
+**Question:** Which ultimates does the team use on this map and side, when, and what happens in the 10 s after?
+
+- **Population:** The team's rounds on one map and side where they fielded the ult's agent
+- **Numerator:** Rounds with at least one use of the ultimate
+- **Unit:** rounds
+- **Caveat:** Tour de Force, Blade Storm and Overdrive have no reliable cast record: their use is their first damage hit, so uses that never hit anyone aren't seen.
+- **Caveat:** The 10 s after an ult credits every kill and death in that window to the ult. Teams often ult when they were going to fight anyway, so this is association, not cause.
+- **Caveat:** Win-chance swing uses the win-probability model (no positions). Rounds where an ult is used aren't random: compare against the league on the same map and side, not against zero.
+- **Caveat:** Uses after the round result are left out, and so are ult casts in the buy phase: about half of all Viper's Pit casts are recorded there and no other ult is, which looks like a recording artefact.
 
 ## Utility (`util.placements` v2)
 

@@ -2,7 +2,7 @@
 
 Checks that were actually run and what they showed. Dataset commit `496fa7f`, parser 2.0.1, run on 2026-11-17.
 
-## Automated tests (70 passing)
+## Automated tests (74 passing)
 
 `python -m pytest tests`. The fixtures are synthetic: invented teams, players and coordinates in GRID's documented shape, never extracts of the corpus.
 
@@ -18,6 +18,7 @@ Checks that were actually run and what they showed. Dataset commit `496fa7f`, pa
 | Ingest IO | Malformed lines are quarantined, not fatal |
 | Map transform | Corners and y-flip; round trip preserves native coordinates; missing geometry stays null; out-of-bounds detected; affine fit recovers a rotated image with zero holdout error; collinear landmarks rejected; minimap calibration swaps axes |
 | Ability quality | Every supplement quality state gets an explicit decision; `missing_both` never becomes 0,0; 1 Hz series detected |
+| Ultimates | Uses counted against rounds with that agent; only kills and deaths inside the 10 s window count; swing from the team's side; no range under 10 uses; weapon ults seen on first hit; holder deaths during an enemy ult leave the straight-duel bucket |
 | Weapon backfill | A weaponless kill takes the weapon of the same attacker's hit on the same victim within 50 ms; 200 ms apart or another attacker doesn't match; known weapons untouched; idempotent |
 | Tour de Force | Counts as a sniper kill, never as a picked-up Operator |
 | Agent kits | One agent's kit is shown by mode; unplaced abilities never drawn; denominator is rounds with that agent |

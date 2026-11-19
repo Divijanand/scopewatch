@@ -293,3 +293,6 @@ button, select, input { font: inherit; color: inherit; }
 .wpa-zero { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
 .wpa-range { position: absolute; top: 2px; height: 6px; background: #b3c1d1; border-radius: 3px; }
 .wpa-row { display: grid; grid-template-columns: minmax(6em, auto) 1fr auto; gap: 10px; align-items: baseline; padding: 4px 8px; }
+
+.ult-list button { grid-template-columns: minmax(9em, auto) 1fr 2.2em; }
+.ult-list .detail { white-space: normal; }

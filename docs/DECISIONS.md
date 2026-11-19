@@ -149,3 +149,28 @@ The Utility view can show one agent's whole kit, each ability drawn by its mode.
 **Weaponless kills:** GRID sends 10,976 kills with no weapon. Each takes the weapon of the damage event from the same attacker on the same victim within 50 ms (`engine/weapons.py`, flagged `weapon_inferred`). That fills 10,853 of them: Tour de Force 2,205, Neon's Overdrive 1,490, Jett's Blade Storm 1,355, Showstopper 1,349, Hunter's Fury 1,264, and so on. 123 stay unknown. Headhunter has no damage records under its own name, so it can't be recovered.
 
 **Tour de Force:** counts as a sniper kill in every kill-based Operator metric (timing, opening, forwardness, setups, escapes, gamble kills, executes against an Operator). It is not an item, so an enemy Tour de Force is never a "stolen Operator". Affected metrics moved to version 2.
+
+## D-017: Ultimates, judged by the 10 seconds after, against the league (2026-11-18)
+
+**Decision:** `ult.usage` lists every ultimate a team uses on one map and side. For each ult it gives:
+- **Usage:** rounds used out of the rounds they fielded that agent, the median time, and how many came after a plant.
+- **The 10 s window after each use:** kills, deaths and the change in round-win chance, using the WPA scores from the win-probability model.
+- **Comparison:** the same window for every team on the map and side, plus a series-bootstrap range from 10 uses.
+
+**Other changes:**
+- `op.how_it_dies` v2 adds deaths **during an enemy ult** (any enemy ult in the 10 s before).
+- An **Ultimates** layer joins the Utility view.
+
+**Why:** An analyst pointed out that ults (Fade, Breach, Sova, KJ, Tejo and others) break Operator setups and swing rounds. The ultimates were in the data but unused.
+
+**Evidence:**
+- On Lotus attack, Cloud9's Fade ult window is −16.3 points (likely −27.8 to −4.7), with 7 kills and 14 deaths. The league is 0.0.
+- Their Raze ult window is +8.3 (+3.0 to +12.6), against +0.4 for the league.
+- Across all maps, 12 of 107 Cloud9 Operator-holder deaths came during an enemy ult.
+
+**Limits:**
+- **Association, not cause.** Teams ult when they're about to fight anyway, so the comparison is with the league, never with zero.
+- **Weapon ults are seen only when they hit someone.** Blade Storm, Overdrive and Tour de Force have no reliable cast record, so their use is their first hit.
+- **Buy-phase ult casts are left out.** About half of all Viper's Pit casts are recorded in the buy phase and no other ult is, which looks like a recording artefact.
+
+**Performance:** The series bootstrap is now vectorised (the same resamples, about 100× faster). The league baseline is cached per map and side.

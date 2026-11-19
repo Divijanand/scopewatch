@@ -129,3 +129,15 @@ def test_an_enemy_tour_de_force_is_not_a_stolen_operator(con):
     d, fn = REGISTRY["op.gamble"]
     by = {b["bucket"]: b for b in fn(con, F).breakdown}
     assert by["stolen"]["round_keys"] == []
+
+
+def test_holder_death_during_an_enemy_ult(con):
+    # an enemy Fade ult 4 s before p1 dies in G:3 (the straight-duel round)
+    con.execute("INSERT INTO casts BY NAME SELECT 'G:3' round_key, 'x2' player_id, 'T2' team_id, 'nightfall' ability, "
+                "1000 ts_ms, TRUE spatial_ok, 9000.0 x, 0.0 y")
+    d, fn = REGISTRY["op.how_it_dies"]
+    r = fn(con, F)
+    by = {b["bucket"]: b for b in r.breakdown}
+    assert by["ulted"]["round_keys"] == ["G:3"]
+    assert by["duel"]["round_keys"] == []                  # an ulted death is no longer a straight duel
+    assert r.value["top_ults"][0]["ability"] == "nightfall"

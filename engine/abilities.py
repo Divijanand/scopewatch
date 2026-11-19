@@ -161,3 +161,15 @@ MODE = {
 
 def mode_of(ability: str) -> str:
     return MODE.get(ability, "thrown")
+
+# ultimates. Most have a cast record (slot ULTIMATE); three are weapons with no reliable cast, so their use is
+# taken from their first damage hit in the round, and they're only seen when they hit someone
+WEAPON_ULTS = frozenset({"tour-de-force", "blade-storm", "overdrive"})
+ULTS = frozenset({
+    "rolling-thunder", "orbital-strike", "not-dead-yet", "neural-theft", "annihilation", "nightfall", "thrash",
+    "reckoning", "kill-contract", "null-cmd", "lockdown", "bassquake", "from-the-shadows", "showstopper",
+    "resurrection", "seekers", "hunter's-fury", "armageddon", "viper's-pit", "steel-garden", "convergent-paths",
+    "dimensional-drift",
+}) | WEAPON_ULTS
+MODE.update({"blade-storm": "self", "overdrive": "self"})
+GROUPS["ultimate"] = ULTS

@@ -143,7 +143,7 @@ def spatial_operator(team_id: str, map: str, side: str | None = SIDE, since: str
 
 @app.get("/api/utility")
 def utility_layer(team_id: str, map: str, side: str = Query("defender", pattern="^(attacker|defender)$"),
-                  group: str = Query("setup", pattern="^(setup|damage|smoke|flash|recon)$"),
+                  group: str = Query("setup", pattern="^(setup|damage|smoke|flash|recon|ultimate)$"),
                   agent: str | None = Query(None, max_length=40),
                   since: str | None = DATE, until: str | None = DATE, player_id: str | None = None,
                   limit: int = Query(4000, le=8000)):
@@ -164,17 +164,25 @@ def utility_layer(team_id: str, map: str, side: str = Query("defender", pattern=
                 from_callout=it[8].get("from_callout"), toward=it[8].get("toward"))
            for it in items]
     warns = res.warnings + ([f"Showing {limit} of {len(pts)} uses."] if len(pts) > limit else [])
-    return envelope(dict(layer="utility_by_ability_mode", group=None if agent else group, agent=agent,
+    defs = [f"{d.id}@v{d.version}"]
+    ults = None
+    if group == "ultimate" and not agent:   # when each ult is used and what the 10 s after are worth
+        ud, ufn = REGISTRY["ult.usage"]
+        ur = ufn(con(), f)
+        ults = ur.to_dict(evidence_limit=0)
+        warns += ur.warnings
+        defs.append(f"{ud.id}@v{ud.version}")
+    return envelope(dict(layer="utility_by_ability_mode", group=None if agent else group, agent=agent, ults=ults,
                          result=res.to_dict(evidence_limit=0),
                          casts=pts[:limit], spawns={k: dict(x=v[0], y=v[1]) for k, v in _spawns(con(), map).items()}),
-                    f, warnings=warns, definitions=[f"{d.id}@v{d.version}"])
+                    f, warnings=warns, definitions=defs)
 
 
 @app.get("/api/evidence")
 def evidence(metric: str, team_id: str, map: str | None = None, side: str | None = SIDE,
              since: str | None = DATE, until: str | None = DATE, player_id: str | None = None,
              which: str = Query("supporting", pattern="^(supporting|contrary)$"),
-             bucket: str | None = None, group: str | None = Query(None, pattern="^(setup|damage|smoke|flash|recon)$"),
+             bucket: str | None = None, group: str | None = Query(None, pattern="^(setup|damage|smoke|flash|recon|ultimate)$"),
              agent: str | None = Query(None, max_length=40),
              page: int = Query(0, ge=0), page_size: int = Query(25, le=100)):
     """The rounds behind a metric result, newest first, paginated."""

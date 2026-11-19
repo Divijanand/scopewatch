@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
-import type { AbilityMode, Cast, MapMeta, MetricDef, Rate, UtilityGroup, UtilityLayer } from './api'
+import type { AbilityMode, Cast, MapMeta, MetricDef, MetricResult, Rate, UtilityGroup, UtilityLayer } from './api'
 import { cap, pct } from './api'
 import type { EvidenceRequest } from './Evidence'
 
 export const GROUP_LABEL: Record<UtilityGroup, string> = {
   setup: 'Setups', damage: 'Mollies and damage', smoke: 'Walls and smokes', flash: 'Flashes and stuns', recon: 'Recon',
+  ultimate: 'Ultimates',
 }
 // one colour per layer; on an agent, one colour per ability. Colour never carries meaning alone: every dot is named
 const GROUP_COLOR: Record<UtilityGroup, string> = {
-  setup: '#1C9FE0', damage: '#C8553D', smoke: '#5B6B84', flash: '#E09A2B', recon: '#1F9E89',
+  setup: '#1C9FE0', damage: '#C8553D', smoke: '#5B6B84', flash: '#E09A2B', recon: '#1F9E89', ultimate: '#7A5BC7',
 }
 const KIT_COLORS = ['#1C9FE0', '#E09A2B', '#C8553D', '#1F9E89', '#7A5BC7']
 
@@ -141,10 +142,67 @@ function HoverText({ c }: { c: Cast }) {
 
 // ------------------------------------------------------------------ findings
 type FindProps = {
-  layer: UtilityLayer; side: string | null; def: MetricDef | undefined
+  layer: UtilityLayer; side: string | null; def: MetricDef | undefined; ultDef?: MetricDef
   focus: UtilFocus | null; onFocus: (f: UtilFocus | null) => void; onEvidence: (r: EvidenceRequest) => void
 }
 type Row = Record<string, any> & { rate: Rate }
+
+const sgn = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}`
+
+/** When each ult is used and what the 10 s after it are worth, against the league on this map and side. */
+function UltFindings({ ults, sideWord, def, onEvidence }: {
+  ults: MetricResult; sideWord: string; def: MetricDef | undefined; onEvidence: (r: EvidenceRequest) => void
+}) {
+  const rows = ults.breakdown as Row[]
+  if (!rows.length) return <section><h3>Ultimates on {sideWord}</h3><p className="claim">No ultimates recorded on this map and side.</p></section>
+  const scored = rows.filter((r) => r.swing != null && r.league_swing != null && r.uses >= 5)
+  const best = [...scored].sort((a, b) => (b.swing - b.league_swing) - (a.swing - a.league_swing))[0]
+  const worst = [...scored].sort((a, b) => (a.swing - a.league_swing) - (b.swing - b.league_swing))[0]
+  const sure = (r: Row) => r.swing_lo != null && r.swing_hi != null && (r.league_swing < r.swing_lo || r.league_swing > r.swing_hi)
+  return (
+    <section>
+      <h3>Ultimates on {sideWord}</h3>
+      {worst && worst.swing < worst.league_swing && (
+        <p className="claim">
+          In the 10 s after their <b>{abilityName(worst.ability)}</b>, their round-win chance moves <b>{sgn(worst.swing)} points</b>,
+          against {sgn(worst.league_swing)} for every team here{sure(worst) ? '.' : ', a hint for now.'}
+        </p>
+      )}
+      {best && best !== worst && best.swing > best.league_swing && (
+        <p className="aside">
+          Their best: <b>{abilityName(best.ability)}</b>, {sgn(best.swing)} points against {sgn(best.league_swing)}
+          {sure(best) ? '' : ' (a hint for now)'}.
+        </p>
+      )}
+      <ul className="spots ult-list">
+        {rows.map((r) => (
+          <li key={r.ability}>
+            <button onClick={() => def && onEvidence({
+              metric: def, bucket: r.bucket,
+              claim: `Rounds where they used ${abilityName(r.ability)}.`,
+              supportingLabel: `Used (${r.rate.k})`, contraryLabel: `${cap(r.agent)} without it`,
+            })}>
+              <span className="where">{abilityName(r.ability)}</span>
+              <span className="detail">
+                {cap(r.agent)}, {r.rate.k} of {r.rate.n} rounds, {whenText(r.median_t)}{r.post_plant ? `, ${r.post_plant} after a plant` : ''}.
+                {' '}Next 10 s: {r.kills} kills, {r.deaths} deaths
+                {r.swing != null && <>, {sgn(r.swing)} pts{r.swing_lo != null && ` (${sgn(r.swing_lo)} to ${sgn(r.swing_hi)})`}
+                  {r.league_swing != null && `; league ${sgn(r.league_swing)}`}</>}
+                {r.seen_only_on_hit && '. Seen only when it hit someone'}
+              </span>
+              <span className="num">{r.rate.k}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="hint">
+        Each ult opens a 10 s window: every kill and death in it, and the change in round-win chance from our model, is
+        credited to the ult. Teams ult when they’re about to fight anyway, so compare with the league, not with zero.
+        Ranges appear from 10 uses. Click an ult to open its rounds.
+      </p>
+    </section>
+  )
+}
 type Timing = { ability: string; agent: string; rate: Rate; per_round: number; median_t: number | null }
 
 function rowDetail(b: Row) {
@@ -198,7 +256,7 @@ function TimingTable({ timing }: { timing: Timing[] }) {
   )
 }
 
-export function UtilityFindings({ layer, side, def, focus, onFocus, onEvidence }: FindProps) {
+export function UtilityFindings({ layer, side, def, ultDef, focus, onFocus, onEvidence }: FindProps) {
   const res = layer.result
   const rows = res.breakdown as Row[]
   const abilities = (res.value.abilities ?? []) as { ability: string; mode: AbilityMode; rate: Rate }[]
@@ -253,8 +311,9 @@ export function UtilityFindings({ layer, side, def, focus, onFocus, onEvidence }
   const topWhen = top ? (top.casts && top.buy_phase / top.casts >= 0.5 ? 'in the buy phase' : whenText(top.median_t)) : ''
   return (
     <div className="findings">
+      {layer.ults && <UltFindings ults={layer.ults} sideWord={sideWord} def={ultDef} onEvidence={onEvidence} />}
       <section>
-        <h3>{GROUP_LABEL[g]} on {sideWord}</h3>
+        <h3>{g === 'ultimate' ? 'Where they use them' : `${GROUP_LABEL[g]} on ${sideWord}`}</h3>
         {top ? (
           <>
             <p className="claim">

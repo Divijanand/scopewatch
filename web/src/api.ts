@@ -72,7 +72,7 @@ export type VodRound = { url: string; buy_end_s: number | null; synced_at_round:
 export type VodGame = { game_id: string; url: string | null; syncs: { round_no: number; vod_s: number }[] }
 export type Evidence = { total: number; which: string; rounds: EvidenceRound[] }
 
-export type UtilityGroup = 'setup' | 'damage' | 'smoke' | 'flash' | 'recon'
+export type UtilityGroup = 'setup' | 'damage' | 'smoke' | 'flash' | 'recon' | 'ultimate'
 export type AbilityMode = 'placed' | 'landing' | 'direction' | 'thrown' | 'self' | 'unplaced'
 /** One use on the map. `kind` says what x/y mean: cast = where the player stood; landing = where it hurt an
  *  enemy (fx/fy = where it was thrown from); wall = start of a wall that runs along vx/vy. */
@@ -84,6 +84,7 @@ export type Cast = {
 }
 export type UtilityLayer = {
   layer: string; group: UtilityGroup | null; agent: string | null; result: MetricResult; casts: Cast[]
+  ults: MetricResult | null
   spawns: Record<string, { x: number; y: number }>
 }
 
