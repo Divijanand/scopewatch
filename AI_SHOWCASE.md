@@ -32,7 +32,7 @@ A running log, written as the work happens. Each entry names the tool, the task,
 | 2026-11-18 | Claude Code | Password-protected demo container and deploy guide; production build exposed a weak typecheck command and a real callout-selection bug, both fixed | `ef4b1fe` |
 | 2026-11-19 | Claude Code | Deployed to Fly.io: read the installer before running it, set the password through a masked prompt piped to `fly secrets import` (never on screen), scaled to one machine, checked every path returns 401 on the live site | `9e5b1e7` |
 | 2026-11-19 | Claude Code | `deep-learning` branch: ML taxonomy (tasks, feature availability measured on the corpus, measures, limits, splits, synthetic-data policy), roadmap, evaluation module; first official T1 numbers reproduce Junie's report exactly | `41708b3` |
-| 2026-11-20 | Junie (GPT-5.3-codex) | Step 4b utility-remaining implementation: charge estimation with 1.0s cast merge + reusable rule update, remain features, synthetic tests, and PyCharm run configuration | uncommitted |
+| 2026-11-20 | Junie (GPT-5.3-codex) | Step 4b utility-remaining implementation: charge estimation with 1.0s cast merge + reusable rule update, remain features, synthetic tests, and PyCharm run configuration; review added a written verdict and 4 rule tests. Result: no gain beyond noise | `b69fde0` |
 
 ## What we learned working with Junie
 
