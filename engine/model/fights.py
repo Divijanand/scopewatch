@@ -44,190 +44,203 @@ def _fight_key(a: str, b: str) -> tuple[str, str]:
 
 
 def build_fights(con=None, window_s: float = 4.0, radius: float = 2500.0) -> pd.DataFrame:
+    """Fights with pre-fight utility features. See `fight_core` and `add_utility`."""
     own_con = con is None
     if own_con:
         con = duckdb.connect(str(DB_PATH), read_only=True)
-
     try:
-        revives_by_round = load_revives(con)
-        rounds = con.execute("""
-            SELECT r.round_key, r.series_id, r.map,
-                   tr_a.team_loadout AS att_loadout_value,
-                   tr_d.team_loadout AS def_loadout_value
-            FROM rounds r
-            JOIN team_rounds tr_a ON tr_a.round_key = r.round_key AND tr_a.side = 'attacker'
-            JOIN team_rounds tr_d ON tr_d.round_key = r.round_key AND tr_d.side = 'defender'
-        """).df()
-        plants = con.execute("SELECT round_key, t_round FROM objectives WHERE kind = 'plant'").df()
-        ops = con.execute("SELECT round_key, player_id, has_op FROM player_rounds WHERE has_op").df()
-        engages = con.execute("""
-            SELECT round_key, t_round, ts_ms, kind, phase, weapon,
-                   att_id, att_side, vic_id, vic_side, damage,
-                   att_x, att_y, vic_x, vic_y, att_callout
-            FROM engagements
-            WHERE phase IN ('pre_plant', 'post_plant')
-              AND kind IN ('damage', 'kill')
-              AND att_id IS NOT NULL
-              AND vic_id IS NOT NULL
-            ORDER BY round_key, ts_ms
-        """).df()
-        casts = con.execute("""
-            SELECT round_key, t_round, side, ability, x, y, spatial_ok
-            FROM casts
-            WHERE phase IN ('pre_plant', 'post_plant')
-              AND side IS NOT NULL
-            ORDER BY round_key, ts_ms
-        """).df()
-
-        plants_by_round = {k: g["t_round"].min() for k, g in plants.groupby("round_key")}
-        ops_by_round = {k: set(g["player_id"].astype(str)) for k, g in ops.groupby("round_key")}
-        casts_by_round = {k: g.reset_index(drop=True) for k, g in casts.groupby("round_key")}
-        rounds_by_key = {r.round_key: r for r in rounds.itertuples(index=False)}
-
-        rows = []
-        no_winner = 0
-
-        for round_key, ev in engages.groupby("round_key", sort=False):
-            if round_key not in rounds_by_key:
-                continue
-            r = rounds_by_key[round_key]
-            ev = ev.reset_index(drop=True)
-
-            open_fights = {}
-            finished = []
-            for e in ev.itertuples(index=False):
-                t = float(e.t_round)
-                stale = [k for k, st in open_fights.items() if t - st["last_damage_t"] > 3.0]
-                for k in stale:
-                    finished.append(open_fights.pop(k))
-
-                key = _fight_key(str(e.att_id), str(e.vic_id))
-                if e.kind == "damage" and _weapon_norm(e.weapon) in GUNS:
-                    st = open_fights.get(key)
-                    if st is None:
-                        open_fights[key] = dict(
-                            t0=t,
-                            ts_ms=int(e.ts_ms),
-                            opener_id=str(e.att_id),
-                            other_id=str(e.vic_id),
-                            opener_side=str(e.att_side),
-                            other_side=str(e.vic_side),
-                            phase=str(e.phase),
-                            opener_weapon=_weapon_norm(e.weapon),
-                            att_callout=getattr(e, "att_callout", None),
-                            p1x=float(e.att_x) if not pd.isna(e.att_x) else np.nan,
-                            p1y=float(e.att_y) if not pd.isna(e.att_y) else np.nan,
-                            p2x=float(e.vic_x) if not pd.isna(e.vic_x) else np.nan,
-                            p2y=float(e.vic_y) if not pd.isna(e.vic_y) else np.nan,
-                            winner_id=None,
-                        )
-                    else:
-                        st["last_damage_t"] = t
-                    open_fights[key]["last_damage_t"] = t
-                elif e.kind == "kill":
-                    st = open_fights.get(key)
-                    if st is None:
-                        continue
-                    if t >= st["t0"] and t - st["last_damage_t"] <= 3.0:
-                        st["winner_id"] = str(e.att_id)
-                        finished.append(st)
-                        open_fights.pop(key, None)
-
-            finished.extend(open_fights.values())
-
-            for st in finished:
-                if st["winner_id"] is None:
-                    no_winner += 1
-                    continue
-
-                t0 = st["t0"]
-                alive = AliveTracker()
-                kill_ev = ev[(ev["kind"] == "kill") & (ev["t_round"] <= t0)].sort_values(["t_round", "ts_ms"])
-                rev = revives_by_round.get(round_key, [])
-                rev_i = 0
-                for k in kill_ev.itertuples(index=False):
-                    while rev_i < len(rev) and rev[rev_i][0] <= float(k.t_round):
-                        alive.revive(rev[rev_i][1])
-                        rev_i += 1
-                    alive.kill(str(k.vic_side), str(k.vic_id))
-                while rev_i < len(rev) and rev[rev_i][0] <= t0:
-                    alive.revive(rev[rev_i][1])
-                    rev_i += 1
-
-                plant_t = plants_by_round.get(round_key)
-                planted = plant_t is not None and float(plant_t) <= t0
-
-                prior_other = ev[
-                    (ev["kind"] == "damage")
-                    & (ev["att_id"] == st["other_id"])
-                    & (ev["t_round"] < t0)
-                ]
-                other_weapon = "unknown"
-                if not prior_other.empty:
-                    other_weapon = _weapon_norm(prior_other.iloc[-1]["weapon"])
-
-                cast_rows = casts_by_round.get(round_key)
-                util = {f"util_opener_{c}": 0 for c in _UTILITY_COLS}
-                util.update({f"util_other_{c}": 0 for c in _UTILITY_COLS})
-                dmg_util_opener = 0.0
-                dmg_util_other = 0.0
-                if cast_rows is not None:
-                    win = cast_rows[(cast_rows["t_round"] >= t0 - window_s) & (cast_rows["t_round"] <= t0)]
-                    for c in win.itertuples(index=False):
-                        if not bool(c.spatial_ok):
-                            continue
-                        if not _dist_ok(c.x, c.y, st["p1x"], st["p1y"], st["p2x"], st["p2y"], radius):
-                            continue
-                        bucket = _ability_bucket(c.ability)
-                        if bucket is None:
-                            continue
-                        if c.side == st["opener_side"]:
-                            util[f"util_opener_{bucket}"] += 1
-                        elif c.side == st["other_side"]:
-                            util[f"util_other_{bucket}"] += 1
-
-                dmg = ev[
-                    (ev["kind"] == "damage")
-                    & (ev["t_round"] >= t0 - window_s)
-                    & (ev["t_round"] <= t0)
-                    & (~ev["weapon"].fillna("unknown").str.lower().isin(GUNS))
-                ]
-                for d in dmg.itertuples(index=False):
-                    if d.att_side == st["opener_side"] and d.vic_id == st["other_id"]:
-                        dmg_util_opener += float(d.damage or 0.0)
-                    elif d.att_side == st["other_side"] and d.vic_id == st["opener_id"]:
-                        dmg_util_other += float(d.damage or 0.0)
-
-                rows.append({
-                    "series_id": r.series_id,
-                    "round_key": round_key,
-                    "t0": t0,
-                    "opener_id": st["opener_id"],
-                    "other_id": st["other_id"],
-                    "opener_side": st["opener_side"],
-                    "label": 1 if st["winner_id"] == st["opener_id"] else 0,
-                    "phase": st["phase"],
-                    "planted": bool(planted),
-                    "seconds_since_buy_phase_end": t0,
-                    "opener_side_alive": alive.alive(st["opener_side"]),
-                    "other_side_alive": alive.alive(st["other_side"]),
-                    "opener_side_econ": r.att_loadout_value if st["opener_side"] == "attacker" else r.def_loadout_value,
-                    "other_side_econ": r.def_loadout_value if st["opener_side"] == "attacker" else r.att_loadout_value,
-                    "opener_weapon": st["opener_weapon"],
-                    "other_weapon": other_weapon,
-                    "opener_has_op": st["opener_id"] in ops_by_round.get(round_key, set()),
-                    "other_has_op": st["other_id"] in ops_by_round.get(round_key, set()),
-                    "map": r.map,
-                    "callout": st["att_callout"] if st["att_callout"] else "unknown",
-                    "dmg_util_opener": dmg_util_opener,
-                    "dmg_util_other": dmg_util_other,
-                    **util,
-                })
-
-        out = pd.DataFrame(rows)
-        out.attrs["no_winner_count"] = int(no_winner)
-        out.attrs["no_winner_share"] = float(no_winner / (len(rows) + no_winner)) if (len(rows) + no_winner) else 0.0
-        return out
+        return add_utility(fight_core(con), con, window_s=window_s, radius=radius)
     finally:
         if own_con:
             con.close()
+
+
+def fight_core(con) -> pd.DataFrame:
+    """One row per fight with a winner: everything except the utility window features.
+
+    A fight is one pair of opposite-side players. It starts at the first gun damage between them,
+    ends at a kill between them (winner = killer) or after 3.0 s with no damage (no winner).
+    """
+    revives_by_round = load_revives(con)
+    rounds = con.execute("""
+        SELECT r.round_key, r.series_id, r.map,
+               tr_a.team_loadout AS att_loadout_value,
+               tr_d.team_loadout AS def_loadout_value
+        FROM rounds r
+        JOIN team_rounds tr_a ON tr_a.round_key = r.round_key AND tr_a.side = 'attacker'
+        JOIN team_rounds tr_d ON tr_d.round_key = r.round_key AND tr_d.side = 'defender'
+    """).df()
+    plants = con.execute("SELECT round_key, min(t_round) AS t FROM objectives WHERE kind = 'plant' GROUP BY 1").df()
+    ops = con.execute("SELECT round_key, player_id FROM player_rounds WHERE has_op").df()
+    eng_cols = {r[1] for r in con.execute("PRAGMA table_info('engagements')").fetchall()}
+    team_cols = "att_team, vic_team" if {"att_team", "vic_team"} <= eng_cols else "NULL AS att_team, NULL AS vic_team"
+    # Same-millisecond events: the feed's own order (seq) keeps a killing shot's damage before the kill.
+    order = "round_key, ts_ms, seq" if "seq" in eng_cols else "round_key, ts_ms, (kind = 'kill')"
+    engages = con.execute(f"""
+        SELECT round_key, t_round, ts_ms, kind, phase, weapon,
+               att_id, att_side, vic_id, vic_side, damage,
+               att_x, att_y, vic_x, vic_y, att_callout, {team_cols}
+        FROM engagements
+        WHERE phase IN ('pre_plant', 'post_plant')
+          AND kind IN ('damage', 'kill')
+          AND att_id IS NOT NULL
+          AND vic_id IS NOT NULL
+        ORDER BY {order}
+    """).df()
+
+    plant_t = dict(zip(plants["round_key"], plants["t"]))
+    ops_by_round: dict[str, set] = {}
+    for rk, pid in zip(ops["round_key"], ops["player_id"].astype(str)):
+        ops_by_round.setdefault(rk, set()).add(pid)
+    rounds_by_key = {r.round_key: r for r in rounds.itertuples(index=False)}
+
+    rows = []
+    no_winner = 0
+    for round_key, ev in engages.groupby("round_key", sort=False):
+        r = rounds_by_key.get(round_key)
+        if r is None:
+            continue
+        evs = list(ev.itertuples(index=False))
+        # alive state: kills and revives in time order, kill before revive at equal times (as winprob does)
+        kills = [(float(e.t_round), 0, str(e.vic_side), str(e.vic_id)) for e in evs if e.kind == "kill"]
+        revs = [(float(t), 1, side, None) for t, side in revives_by_round.get(round_key, [])]
+        state_events = sorted(kills + revs, key=lambda x: (x[0], x[1]))
+        gun_damage_by_player: dict[str, list] = {}
+
+        open_fights: dict = {}
+        finished = []
+        for e in evs:
+            t = float(e.t_round)
+            for k in [k for k, st in open_fights.items() if t - st["last_damage_t"] > 3.0]:
+                finished.append(open_fights.pop(k))
+            if e.att_side == e.vic_side:
+                continue
+            key = _fight_key(str(e.att_id), str(e.vic_id))
+            weapon = _weapon_norm(e.weapon)
+            if e.kind == "damage" and weapon in GUNS:
+                st = open_fights.get(key)
+                if st is None:
+                    prior = gun_damage_by_player.get(str(e.vic_id))
+                    open_fights[key] = dict(
+                        t0=t, opener_id=str(e.att_id), other_id=str(e.vic_id),
+                        opener_side=str(e.att_side), other_side=str(e.vic_side),
+                        opener_team=e.att_team, other_team=e.vic_team,
+                        phase=str(e.phase), opener_weapon=weapon,
+                        other_weapon=prior[-1] if prior else "unknown",
+                        att_callout=e.att_callout,
+                        p1x=e.att_x, p1y=e.att_y, p2x=e.vic_x, p2y=e.vic_y,
+                        winner_id=None, last_damage_t=t,
+                    )
+                else:
+                    st["last_damage_t"] = t
+                gun_damage_by_player.setdefault(str(e.att_id), []).append(weapon)
+            elif e.kind == "kill":
+                st = open_fights.get(key)
+                if st is not None and t - st["last_damage_t"] <= 3.0:
+                    st["winner_id"] = str(e.att_id)
+                    finished.append(open_fights.pop(key))
+        finished.extend(open_fights.values())
+
+        for st in finished:
+            if st["winner_id"] is None:
+                no_winner += 1
+                continue
+            t0 = st["t0"]
+            alive = AliveTracker()
+            for t, kind, side, vic in state_events:
+                if t > t0:
+                    break
+                if kind == 0:
+                    alive.kill(side, vic)
+                else:
+                    alive.revive(side)
+            pt = plant_t.get(round_key)
+            ops_here = ops_by_round.get(round_key, set())
+            att = st["opener_side"] == "attacker"
+            callout = st["att_callout"]
+            rows.append({
+                "series_id": r.series_id,
+                "round_key": round_key,
+                "t0": t0,
+                "opener_id": st["opener_id"],
+                "other_id": st["other_id"],
+                "opener_team": st["opener_team"],
+                "other_team": st["other_team"],
+                "opener_side": st["opener_side"],
+                "other_side": st["other_side"],
+                "label": 1 if st["winner_id"] == st["opener_id"] else 0,
+                "phase": st["phase"],
+                "planted": bool(pt is not None and float(pt) <= t0),
+                "seconds_since_buy_phase_end": t0,
+                "opener_side_alive": alive.alive(st["opener_side"]),
+                "other_side_alive": alive.alive(st["other_side"]),
+                "opener_side_econ": r.att_loadout_value if att else r.def_loadout_value,
+                "other_side_econ": r.def_loadout_value if att else r.att_loadout_value,
+                "opener_weapon": st["opener_weapon"],
+                "other_weapon": st["other_weapon"],
+                "opener_has_op": st["opener_id"] in ops_here,
+                "other_has_op": st["other_id"] in ops_here,
+                "map": r.map,
+                "callout": callout if isinstance(callout, str) and callout else "unknown",
+                "p1x": st["p1x"], "p1y": st["p1y"], "p2x": st["p2x"], "p2y": st["p2y"],
+            })
+
+    out = pd.DataFrame(rows)
+    out.attrs["no_winner_count"] = int(no_winner)
+    total = len(rows) + no_winner
+    out.attrs["no_winner_share"] = float(no_winner / total) if total else 0.0
+    return out
+
+
+def add_utility(core: pd.DataFrame, con, window_s: float = 4.0, radius: float = 2500.0) -> pd.DataFrame:
+    """Utility in [t0 - window_s, t0]: casts by each team within `radius` of either fighter
+    (caster position, `spatial_ok` only), and ability damage each team dealt to the other fighter."""
+    out = core.copy()
+    out.attrs.update(core.attrs)
+    for side in ("opener", "other"):
+        for c in _UTILITY_COLS:
+            out[f"util_{side}_{c}"] = 0
+        out[f"dmg_util_{side}"] = 0.0
+    if out.empty:
+        return out
+    f = out[["round_key", "t0", "opener_side", "other_side", "opener_id", "other_id", "p1x", "p1y", "p2x", "p2y"]].copy()
+    f["fight_id"] = np.arange(len(f))
+    con.register("_fights", f)
+    try:
+        casts = con.execute("""
+            SELECT f.fight_id, (c.side = f.opener_side) AS mine, c.ability
+            FROM _fights f
+            JOIN casts c ON c.round_key = f.round_key AND c.t_round BETWEEN f.t0 - ? AND f.t0
+            WHERE c.phase IN ('pre_plant', 'post_plant') AND c.side IN (f.opener_side, f.other_side)
+              AND coalesce(c.spatial_ok, false) AND c.x IS NOT NULL AND c.y IS NOT NULL
+              AND least(sqrt((c.x - f.p1x) ** 2 + (c.y - f.p1y) ** 2),
+                        sqrt((c.x - f.p2x) ** 2 + (c.y - f.p2y) ** 2)) <= ?
+        """, [window_s, radius]).df()
+        guns = "(" + ",".join(f"'{g}'" for g in sorted(GUNS)) + ")"
+        dmg = con.execute(f"""
+            SELECT f.fight_id,
+                   sum(CASE WHEN e.att_side = f.opener_side AND e.vic_id = f.other_id
+                            THEN coalesce(e.damage, 0) ELSE 0 END) AS dmg_util_opener,
+                   sum(CASE WHEN e.att_side = f.other_side AND e.vic_id = f.opener_id
+                            THEN coalesce(e.damage, 0) ELSE 0 END) AS dmg_util_other
+            FROM _fights f
+            JOIN engagements e ON e.round_key = f.round_key AND e.t_round BETWEEN f.t0 - ? AND f.t0
+            WHERE e.kind = 'damage' AND e.phase IN ('pre_plant', 'post_plant')
+              AND e.att_id IS NOT NULL AND e.vic_id IS NOT NULL
+              AND lower(coalesce(e.weapon, 'unknown')) NOT IN {guns}
+            GROUP BY 1
+        """, [window_s]).df()
+    finally:
+        con.unregister("_fights")
+    if not casts.empty:
+        casts["bucket"] = casts["ability"].map(_ability_bucket)
+        casts = casts.dropna(subset=["bucket"])
+        casts["col"] = "util_" + np.where(casts["mine"], "opener", "other") + "_" + casts["bucket"]
+        counts = casts.groupby(["fight_id", "col"]).size().unstack(fill_value=0)
+        for col in counts.columns:
+            out.loc[counts.index.to_numpy(), col] = counts[col].to_numpy()
+    if not dmg.empty:
+        idx = dmg["fight_id"].to_numpy()
+        out.loc[idx, "dmg_util_opener"] = dmg["dmg_util_opener"].to_numpy()
+        out.loc[idx, "dmg_util_other"] = dmg["dmg_util_other"].to_numpy()
+    return out

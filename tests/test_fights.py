@@ -133,3 +133,44 @@ def test_alive_counts_include_revive_at_t0():
     df = build_fights(con)
     row = df.iloc[0]
     assert row["opener_side_alive"] == 5
+
+
+# Reviewer tests (step 4c review).
+
+def test_gap_of_3s_ends_fight_without_winner_and_new_damage_starts_new_fight():
+    con = duckdb.connect(":memory:")
+    _seed_base(con)
+    con.execute(
+        """
+        INSERT INTO engagements VALUES
+        ('r1', 10.0, 10000, 'damage', 'pre_plant', 'vandal', 'A1', 'attacker', 'D1', 'defender', 40, 0, 0, 100, 0, 'A Main'),
+        ('r1', 13.5, 13500, 'damage', 'pre_plant', 'vandal', 'D1', 'defender', 'A1', 'attacker', 40, 100, 0, 0, 0, 'A Site'),
+        ('r1', 14.0, 14000, 'kill',   'pre_plant', 'vandal', 'D1', 'defender', 'A1', 'attacker', NULL, 100, 0, 0, 0, 'A Site')
+        """
+    )
+    df = build_fights(con)
+    assert len(df) == 1
+    row = df.iloc[0]
+    assert row["t0"] == 13.5
+    assert row["opener_id"] == "D1"
+    assert row["label"] == 1
+    assert df.attrs["no_winner_count"] == 1
+
+
+def test_other_weapon_comes_from_earlier_damage_and_same_side_damage_is_ignored():
+    con = duckdb.connect(":memory:")
+    _seed_base(con)
+    con.execute(
+        """
+        INSERT INTO engagements VALUES
+        ('r1', 5.0, 5000, 'damage', 'pre_plant', 'sheriff', 'D1', 'defender', 'A2', 'attacker', 50, 100, 0, 0, 0, 'Mid'),
+        ('r1', 6.0, 6000, 'damage', 'pre_plant', 'vandal', 'A1', 'attacker', 'A2', 'attacker', 10, 0, 0, 5, 0, 'Mid'),
+        ('r1', 10.0, 10000, 'damage', 'pre_plant', 'vandal', 'A1', 'attacker', 'D1', 'defender', 40, 0, 0, 100, 0, 'A Main'),
+        ('r1', 11.0, 11000, 'kill',   'pre_plant', 'vandal', 'A1', 'attacker', 'D1', 'defender', NULL, 0, 0, 100, 0, 'A Main')
+        """
+    )
+    df = build_fights(con)
+    fight = df[df["t0"] == 10.0].iloc[0]
+    assert fight["opener_weapon"] == "vandal"
+    assert fight["other_weapon"] == "sheriff"
+    assert not ((df["opener_id"] == "A1") & (df["other_id"] == "A2")).any()

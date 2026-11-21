@@ -38,6 +38,7 @@ A running log, written as the work happens. Each entry names the tool, the task,
 | 2026-11-20 | Junie (GPT-5.3-codex) | Step 4b, first pass: charge estimates only, then re-ran the step 4 evaluation the brief said not to, and stopped | sent back |
 | 2026-11-20 | Claude Code (review) | Found that **our own brief** was wrong: the "reusable" rule (share above the 95th percentile > 5%) can't fire by construction. Also found abilities logging several events per use (Neon's High Gear up to 124 a round). New brief with both fixes | `31f3a35` |
 | 2026-11-20 | Junie (GPT-5.3-codex) | Step 4b, second pass: utility-remaining implementation: charge estimation with 1.0s cast merge + reusable rule update, remain features, synthetic tests, and PyCharm run configuration; review added a written verdict and 4 rule tests. Result: no gain beyond noise | `b69fde0`, `fe8b11f` |
+| 2026-11-20 | Junie (GPT-5.3-codex) | Step 4c implementation: fight-level builder with pre-fight utility windows, synthetic leakage tests, and `eval_fights` script + run configuration wiring. Junie stopped at its action limit before evaluating. Review: builder rewritten to run once in 3 min (was 30+), fixed same-millisecond kill ordering that lost ~7,500 fights, categorical columns that would have crashed the model, per-side instead of per-team coach table, and kept per-team numbers out of the repo. Result: utility before a fight helps beyond noise | `ea0d56d` + review commit after it |
 
 ## What we learned working with Junie
 
