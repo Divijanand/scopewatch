@@ -1,18 +1,74 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections import defaultdict
 
 import duckdb
 import pandas as pd
 
 from engine.abilities import PLACEABLE, ULTS, WEAPON_ULTS, kind_of
 from engine.config import DB_PATH
+from engine.model.charges import estimate_charges, merge_cast_uses
 from engine.model.winprob import AliveTracker, REVIVES
 from engine.roles import ROLE
 
 ROLE_ORDER = ("duelist", "initiator", "controller", "sentinel")
 UTIL_KINDS = ("smoke", "flash", "stun", "info", "movement")
 ULT_SET = set(ULTS) - set(WEAPON_ULTS)
+REMAIN_KINDS = ("smoke", "flash", "recon")
+
+
+def _remain_kind(ability: str | None) -> str | None:
+    k = kind_of(ability)
+    if k == "smoke":
+        return "smoke"
+    if k in ("flash", "stun"):
+        return "flash"
+    if k == "info":
+        return "recon"
+    return None
+
+
+def _remaining_features(roster: dict[str, PlayerState], casts_so_far: dict[str, dict[str, int]],
+                        charges_by_ability: dict[str, dict[str, object]], agent_kits: dict[str, tuple[str, ...]],
+                        ult_used: dict[str, bool]) -> dict[str, int]:
+    strict = {
+        "attacker": {k: 0 for k in REMAIN_KINDS},
+        "defender": {k: 0 for k in REMAIN_KINDS},
+    }
+    all_ = {
+        "attacker": {k: 0 for k in REMAIN_KINDS},
+        "defender": {k: 0 for k in REMAIN_KINDS},
+    }
+    ult = {
+        "attacker": 0,
+        "defender": 0,
+    }
+    for pid, p in roster.items():
+        if p.side not in strict or not p.alive:
+            continue
+        for ab in agent_kits.get(pid, ()): 
+            if ab in ULT_SET:
+                if not ult_used.get(pid, False):
+                    ult[p.side] += 1
+                continue
+            cat = _remain_kind(ab)
+            info = charges_by_ability.get(ab)
+            if cat is None or info is None:
+                continue
+            rem = max(0, int(info["typical_charges"]) - casts_so_far[pid].get(ab, 0))
+            all_[p.side][cat] += rem
+            if not bool(info["reusable"]):
+                strict[p.side][cat] += rem
+
+    row = {}
+    for side, prefix in (("attacker", "att"), ("defender", "def")):
+        for k in REMAIN_KINDS:
+            row[f"remain_strict_{prefix}_{k}"] = strict[side][k]
+            row[f"remain_all_{prefix}_{k}"] = all_[side][k]
+        row[f"remain_strict_{prefix}_ult"] = ult[side]
+        row[f"remain_all_{prefix}_ult"] = ult[side]
+    return row
 
 
 @dataclass
@@ -101,6 +157,10 @@ def _scores_before_round(rounds: pd.DataFrame) -> dict[str, tuple[int, int]]:
 def build_states(db_path=DB_PATH) -> pd.DataFrame:
     con = duckdb.connect(str(db_path), read_only=True)
     patch_index = _patch_index_map(con)
+    charges = estimate_charges(con)
+    cast_cols = {r[1] for r in con.execute("PRAGMA table_info('casts')").fetchall()}
+    has_cast_agent = "agent" in cast_cols
+    has_cast_player = "player_id" in cast_cols
 
     rounds = con.execute("""
         SELECT r.round_key, r.series_id, r.game_id, r.round_no, r.map, r.patch,
@@ -135,12 +195,21 @@ def build_states(db_path=DB_PATH) -> pd.DataFrame:
         WHERE kind = 'plant'
         ORDER BY round_key, t_round
     """).df()
-    casts = con.execute("""
-        SELECT round_key, t_round, side, ability, phase
-        FROM casts
-        WHERE side IN ('attacker', 'defender') AND phase != 'post_round'
-        ORDER BY round_key, t_round
-    """).df()
+    cast_player_expr = "player_id" if has_cast_player else "NULL AS player_id"
+    if has_cast_agent:
+        casts = con.execute("""
+            SELECT round_key, t_round, side, {cast_player_expr}, agent, ability, phase, ts_ms
+            FROM casts
+            WHERE side IN ('attacker', 'defender') AND phase != 'post_round'
+            ORDER BY round_key, t_round
+        """.format(cast_player_expr=cast_player_expr)).df()
+    else:
+        casts = con.execute("""
+            SELECT round_key, t_round, side, {cast_player_expr}, NULL AS agent, ability, phase, ts_ms
+            FROM casts
+            WHERE side IN ('attacker', 'defender') AND phase != 'post_round'
+            ORDER BY round_key, t_round
+        """.format(cast_player_expr=cast_player_expr)).df()
     revives = con.execute(f"""
         SELECT round_key, t_round, side
         FROM casts
@@ -148,6 +217,22 @@ def build_states(db_path=DB_PATH) -> pd.DataFrame:
         ORDER BY round_key, t_round
     """).df()
     con.close()
+
+    charges = charges.sort_values(["ability", "n_player_rounds"], ascending=[True, False])
+    charges_by_ability = {
+        r.ability: {"typical_charges": int(r.typical_charges), "reusable": bool(r.reusable)}
+        for r in charges.drop_duplicates("ability").itertuples(index=False)
+    }
+    kit_rows = casts[["agent", "ability"]].dropna().drop_duplicates()
+    kit_by_agent = {
+        agent: tuple(sorted(g["ability"].tolist()))
+        for agent, g in kit_rows.groupby("agent", sort=False)
+    }
+    merged = merge_cast_uses(casts[["round_key", "t_round", "player_id", "ability", "phase"]].dropna())
+    merged_cast_keys = {
+        (r.round_key, float(r.t_round), r.player_id, r.ability)
+        for r in merged.itertuples(index=False)
+    }
 
     players_by_round = {k: g for k, g in players.groupby("round_key")}
     ops_by_round = {k: g for k, g in player_ops.groupby("round_key")}
@@ -174,13 +259,18 @@ def build_states(db_path=DB_PATH) -> pd.DataFrame:
         util_counts = {"attacker": {f"util_{k}": 0 for k in UTIL_KINDS} | {"util_placeable": 0},
                        "defender": {f"util_{k}": 0 for k in UTIL_KINDS} | {"util_placeable": 0}}
         ult_counts = {"attacker": 0, "defender": 0}
+        casts_so_far = defaultdict(dict)
+        ult_used = {}
+        agent_kits = {}
+        for p in pr.itertuples(index=False):
+            agent_kits[p.player_id] = kit_by_agent.get(p.agent, ())
 
         events = []
         for k in kills_by_round.get(r.round_key, pd.DataFrame(columns=["t_round", "vic_side", "vic_id"])).itertuples(index=False):
             events.append(("kill", float(k.t_round), k))
         for p in plants_by_round.get(r.round_key, pd.DataFrame(columns=["t_round"])).itertuples(index=False):
             events.append(("plant", float(p.t_round), p))
-        for c in casts_by_round.get(r.round_key, pd.DataFrame(columns=["t_round", "side", "ability", "phase"])).itertuples(index=False):
+        for c in casts_by_round.get(r.round_key, pd.DataFrame(columns=["t_round", "side", "player_id", "agent", "ability", "phase", "ts_ms"])).itertuples(index=False):
             events.append(("cast", float(c.t_round), c))
         for rv in revives_by_round.get(r.round_key, pd.DataFrame(columns=["t_round", "side"])).itertuples(index=False):
             events.append(("revive", float(rv.t_round), rv))
@@ -203,6 +293,10 @@ def build_states(db_path=DB_PATH) -> pd.DataFrame:
                     util_counts[side]["util_placeable"] += 1
                 if e.ability in ULT_SET and e.phase in ("pre_plant", "post_plant"):
                     ult_counts[side] += 1
+                    ult_used[e.player_id] = True
+                cast_key = (r.round_key, float(e.t_round), e.player_id, e.ability)
+                if cast_key in merged_cast_keys and e.player_id is not None and e.ability is not None:
+                    casts_so_far[e.player_id][e.ability] = casts_so_far[e.player_id].get(e.ability, 0) + 1
                 continue
             if etype == "revive":
                 alive.revive(e.side)
@@ -250,6 +344,7 @@ def build_states(db_path=DB_PATH) -> pd.DataFrame:
                 for kind in UTIL_KINDS:
                     row[f"util_{prefix}_{kind}"] = util_counts[side][f"util_{kind}"]
                 row[f"util_{prefix}_placeable"] = util_counts[side]["util_placeable"]
+            row.update(_remaining_features(roster, casts_so_far, charges_by_ability, agent_kits, ult_used))
             rows.append(row)
 
     df = pd.DataFrame(rows)
