@@ -11,6 +11,12 @@ MATCH_MS = 50
 
 SNIPERS = ("operator", "outlaw", "tour-de-force")   # Chamber's ult counts as an Operator for kill metrics
 
+GUNS = frozenset({
+    "classic", "shorty", "frenzy", "ghost", "sheriff", "bandit", "stinger", "spectre", "bucky",
+    "judge", "bulldog", "guardian", "phantom", "vandal", "marshal", "outlaw", "operator", "ares",
+    "odin", "blade-storm", "tour-de-force", "overdrive",
+})
+
 
 def backfill(con) -> dict:
     cols = {r[0] for r in con.execute("DESCRIBE engagements").fetchall()}
