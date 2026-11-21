@@ -40,7 +40,11 @@ $$\hat p \pm z\sqrt{\frac{\hat p(1-\hat p)}{n}} \;\rightarrow\; \frac{\hat p + \
 
 ## Built with JetBrains
 
-_TODO, written honestly from what we actually did: PyCharm for the pipeline, JetBrains Air with Junie/Claude Agent for tasks X, Y, Z, WebStorm for the front end. See AI_SHOWCASE.md._
+**PyCharm** is where the project lives. Every step of the pipeline, from ingest through the store, maps, model training and each ML evaluation, is a shared run configuration in the repo (12 of them), so a teammate clones it and runs everything from the toolbar.
+
+**Junie** built four of our features and ML steps: the round win-probability model, Operator value (win probability added), and two rounds of model experiments (richer features, and utility still held). We ran Junie like a teammate taking tickets: every task was a written brief in `docs/briefs/` with files, rules, a definition of done and checks to run, and `AGENTS.md` carried the data-licence rules it must never break. Claude Code reviewed each result the way you'd review a pull request: it read the diff, ran the tests and reproduced the numbers independently. Review caught real problems (label leakage, a metric that worked alone but wasn't wired in, a baseline 0.001 off that led us to fix our own store) and once caught a mistake in our own brief. Junie switched from its default model to GPT-5.3-codex on day three, so one model writes and another reviews.
+
+The full log, with the model, the task, what review found and the commit for every step, is in [AI_SHOWCASE.md](../AI_SHOWCASE.md), including our honest feedback for JetBrains: what Junie did well, where review mattered, and the friction we hit.
 
 ## Challenges we ran into
 
