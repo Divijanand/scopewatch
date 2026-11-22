@@ -313,7 +313,7 @@ button, select, input { font: inherit; color: inherit; }
 .report-group > h2 { margin: 18px 0 0; font-size: 1.05rem; color: var(--ink-2); }
 
 /* matchup tab */
-.mu { display: grid; gap: 18px; }
+.mu { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .mu-top { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .mu-top h2 { margin: 0 0 8px; font-size: 1.05rem; }
 .mu-top ul, .mu-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
@@ -335,6 +335,7 @@ button, select, input { font: inherit; color: inherit; }
 .mu-tag-edge { color: var(--ink); }
 .mu-too-few { margin: 2px 0 0; color: var(--ink-2); }
 
+.mu-h2h { overflow-x: auto; }   /* long event names scroll inside the table, not the page */
 .mu-h2h table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .mu-h2h th, .mu-h2h td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); font-size: .9rem; }
 .mu-h2h th { color: var(--ink-3); font-size: .8rem; font-weight: 600; }

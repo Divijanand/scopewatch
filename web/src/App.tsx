@@ -208,10 +208,10 @@ export default function App() {
                 </select>
               </label>
             )}
-            <label className="check">
+            {view !== 'matchup' && <label className="check">
               <input type="checkbox" checked={showDamage} onChange={(e) => setShowDamage(e.target.checked)} />
               Show hits that didn’t kill
-            </label>
+            </label>}
             {(player || buckets.size > 0 || focus) && (
               <button className="reset" onClick={() => { setPlayer(null); setBuckets(new Set()); setFocus(null) }}>Clear filters</button>
             )}

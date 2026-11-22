@@ -1,3 +1,4 @@
+import { cap } from './api'
 import type { Matchup as MatchupData, MatchupPair, MatchupValue } from './api'
 
 function pos(unit: MatchupPair['unit'], x: number, lo: number, hi: number, league: number) {
@@ -98,7 +99,7 @@ export function Matchup({ matchup, map }: { matchup: MatchupData; map: string })
           {matchup.top.a.length === 0 ? <p className="mu-note">Nothing beyond noise on this map.</p> : (
             <ul>
               {matchup.top.a.map((f) => (
-                <li key={f.id}>
+                <li key={`${f.side}:${f.id}`}>
                   <p className="mu-small">{f.title} on {f.side === 'attacker' ? 'attack' : 'defence'}</p>
                   <p className="mu-headline">{f.headline}</p>
                   <p className="mu-prepare"><b>{f.prepare}</b></p>
@@ -112,7 +113,7 @@ export function Matchup({ matchup, map }: { matchup: MatchupData; map: string })
           {matchup.top.b.length === 0 ? <p className="mu-note">Nothing beyond noise on this map.</p> : (
             <ul>
               {matchup.top.b.map((f) => (
-                <li key={f.id}>
+                <li key={`${f.side}:${f.id}`}>
                   <p className="mu-small">{f.title} on {f.side === 'attacker' ? 'attack' : 'defence'}</p>
                   <p className="mu-headline">{f.headline}</p>
                   <p className="mu-prepare"><b>{f.prepare}</b></p>
@@ -145,16 +146,16 @@ export function Matchup({ matchup, map }: { matchup: MatchupData; map: string })
         {matchup.head_to_head.length === 0 ? <p className="mu-note">{matchup.note ?? 'No head-to-head series in this filter.'}</p> : (
           <table>
             <thead>
-            <tr><th>Date</th><th>Event</th><th>Map</th><th>Score</th><th>Winner</th></tr>
+            <tr><th>Date</th><th>Event</th><th>Map</th><th>Score ({a.name}–{b.name})</th><th>Winner</th></tr>
             </thead>
             <tbody>
             {matchup.head_to_head.map((r) => (
               <tr key={`${r.series_id}:${r.game_id}:${r.map}`} className={r.map === map ? 'mu-current-map' : ''}>
                 <td>{r.date}</td>
                 <td>{r.event}</td>
-                <td>{r.map}</td>
+                <td>{cap(r.map)}</td>
                 <td>{r.a_rounds}–{r.b_rounds}</td>
-                <td>{r.winner}</td>
+                <td>{r.winner === a.id ? a.name : r.winner === b.id ? b.name : '–'}</td>
               </tr>
             ))}
             </tbody>

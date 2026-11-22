@@ -79,7 +79,7 @@ export type MatchupValue = {
   hi: number | null
   n: number | null
   league: number | null
-  stance: string | null
+  stance: -1 | 0 | 1 | null   // against the league: beyond noise for, within noise, beyond noise against
 }
 
 export type MatchupPair = {
