@@ -177,6 +177,11 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const duels = t['fights.dry_duels']
   const wpa = t['op.wpa']
   const pred = t['team.predictability']
+  const retakes = t['team.retakes']
+  const postPlant = t['team.post_plant']
+  const econ = t['team.economy']
+  const openings = t['team.openings']
+  const closing = t['team.closing']
   const score = pred?.value.score as number | null | undefined
   const wv = wpa?.value as Wpa | undefined
   // most rounds first: a one-round number never headlines
@@ -358,6 +363,56 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
         </section>
       )}
       {wpa?.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
+      {retakes?.value?.n >= 20 && side === 'defender' && retakes?.value?.retake && (
+        <section>
+          <h3>Retakes</h3>
+          <p className="claim">
+            They retake <b>{pct(retakes.value.retake)}</b> of plants faced,
+            {retakes.value.league_retake?.p != null && <> league <b>{pct(retakes.value.league_retake)}</b></>}.
+          </p>
+          <Evidence r={retakes.value.retake} unit="plants faced" />
+        </section>
+      )}
+      {postPlant?.value?.n >= 20 && side === 'attacker' && postPlant?.value?.pre_plant_losses && (
+        <section>
+          <h3>Post-plant fundamentals</h3>
+          <p className="claim">
+            Their attack losses come before the plant in <b>{pct(postPlant.value.pre_plant_losses)}</b>,
+            {postPlant.value.league_pre_plant_losses?.p != null && <> league <b>{pct(postPlant.value.league_pre_plant_losses)}</b></>}.
+          </p>
+          <Evidence r={postPlant.value.pre_plant_losses} unit="attack losses" />
+        </section>
+      )}
+      {econ?.value?.n >= 20 && (
+        <section>
+          <h3>Economy</h3>
+          <p className="claim">
+            They win <b>{pct(econ.value.pistol)}</b> of pistols and <b>{pct(econ.value.bonus)}</b> of bonus rounds after pistol wins.
+          </p>
+          {econ.breakdown?.[0]?.rate && <Evidence r={econ.breakdown[0].rate} unit="economy rounds" />}
+        </section>
+      )}
+      {openings?.value?.n >= 20 && openings?.value?.first_blood && (
+        <section>
+          <h3>Openings</h3>
+          <p className="claim">
+            They get first blood in <b>{pct(openings.value.first_blood)}</b> of opening rounds,
+            winning <b>{pct(openings.value.win_after_first_blood)}</b> after getting it.
+          </p>
+          <Evidence r={openings.value.first_blood} unit="opening rounds" />
+        </section>
+      )}
+      {closing?.value?.n >= 20 && closing?.value?.comebacks && closing?.value?.throws && (
+        <section>
+          <h3>Closing rounds</h3>
+          <p className="claim">
+            They convert comebacks in <b>{pct(closing.value.comebacks)}</b> of comeback spots and throw
+            <b> {pct(closing.value.throws)}</b> of strong-win spots.
+          </p>
+          <Evidence r={closing.value.comebacks} unit="comeback spots" />
+        </section>
+      )}
+      {closing?.warnings?.map((w: string) => <p key={w} className="hint">{w}</p>)}
       {exe && side === 'attacker' && exe.breakdown.length > 0 && (
         <section>
           <h3>How they hit sites</h3>

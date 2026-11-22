@@ -56,6 +56,13 @@ What we're building, in order, and why. Definitions are in [ML_TAXONOMY.md](ML_T
 - **Dry duels** (`fights.dry_duels`): fights with no utility from either side in the 4 s before, scored as actual minus the league's opener win rate for the same map, side, alive counts and plant, so who shot first is accounted for. By who opened and by the team's agent. League agent pairs in [AGENT_DUELS.md](AGENT_DUELS.md): 133 pairs with 300+ dry fights, 27 beyond noise where about 13 would be by chance; Chamber leads most of them, which includes his guns and the Operator.
 - **Status:** implemented by Junie (GPT-5.3-codex), reviewed and fixed (2026-11-21). Both cards are in the app.
 
+## Step 5c: team fundamentals cards (retakes, post-plant, economy, openings, closing)
+- `team.retakes`: implemented, awaiting review.
+- `team.post_plant`: implemented, awaiting review.
+- `team.economy`: implemented, awaiting review.
+- `team.openings`: implemented, awaiting review.
+- `team.closing`: implemented, awaiting review.
+
 ## Step 6: deep learning, then rinse and repeat
 - **Model:** a sequence model over a round's events in order (time, event type, who, where, economy, utility), with players as a set (order-free) and agents and callouts as embeddings. Start small (GRU or a 2-layer transformer).
 - **Comparison:** against the step 4 gradient-boosted model, with the step 1 rule. It ships only if it wins **and** is at least as well calibrated (with temperature scaling on the validation series if needed).
