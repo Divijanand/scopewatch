@@ -48,6 +48,17 @@ Everything here follows our pattern: a team against the league, Wilson ranges, n
   - caster position isn't where the ult landed (Viper's Pit is centred on the caster, Sova's ult isn't).
 - Evidence: the rounds with the stall or ult, split by won and lost.
 
+## 4b. What their damaging utility does (`util.damage`)
+Damaging abilities are those with `engagements.kind = 'damage'` and a weapon not in `GUNS` (for example `snake-bite`, `nanoswarm`, `incendiary`, `hot-hands`, `paint-shells`, `guided-salvo`, `shock-bolt`, `aftershock`). The feed records a hit only when it touches someone, so utility that stalls by keeping people away isn't seen. Say so in the caveats.
+- **Utility damage and kills per round:** the team's ability damage per round and ability kills per round, by ability (the top 5 with n), against the league's for the same abilities on the map and side. Compare only abilities the team fielded (`casts.agent` in their comp). Per-round means use series-bootstrap ranges (`bootstrap_mean`, D-020).
+- **Softened kills:** the share of the team's gun kills where the victim took ability damage from the team in the 5 s before ("nade, then swing"), with `Rate.of` against the league's.
+- **Molly denial on the spike:** after the plant, in rounds the team planted, the share of rounds where their ability damage hit a defender within 500 units of the plant position (that defender was most likely on the spike). Give the post-plant win rate in those rounds against the others, within the same numbers-at-the-plant bucket, against the league. Use the same caveat as stalls: association.
+- One finding template each in `engine/report.py`. Example prepare line (format only): "Their utility kills: don't stand in lineups on retakes."
+- Tests in `tests/test_post_plant_util.py`:
+  - gun damage never counts as utility;
+  - a softened kill needs the team's own ability damage on that victim within 5 s before the kill;
+  - spike denial needs a hit after the plant within 500 units of the plant.
+
 ## 5. Buffs in fights (`engine/model/fights.py` and `scripts/eval_fight_buffs.py`)
 - In `add_utility`, add `buff_opener` and `buff_other`: a `stim-beacon` or `null-cmd` cast by that side within the same window and radius. Reyna's Empress isn't recorded as a cast in the feed; say so in the docstring.
 - `scripts/eval_fight_buffs.py` writes `docs/EVAL_FIGHT_BUFFS.md`. It follows `eval_fights.compare`: full model against full plus buff columns, at 4 s and 2,500 units, with the step 1 rule, plus the count of fights with a buff on each side. Say plainly if there are too few buffed fights to tell.
