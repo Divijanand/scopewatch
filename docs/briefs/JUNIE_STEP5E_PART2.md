@@ -27,6 +27,7 @@
    - the `title`, then the `sentence`;
    - two thin bars, one per side, labelled with the team name. Reuse the scale from `Summary.tsx`'s `pos()` (rate: 0 to 1; diff: symmetric around 0), with the league tick;
    - the read as a short tag: "Edge to {team name}" for `attacker`/`defender`, "Even", or "Too few rounds". Style the edge tag in `--ink`, the others in `--ink-3`. No green or red.
+   - Rows whose `read` is `too_few` aren't drawn as rows: list their titles in one line at the end of the group, "Too few rounds to compare: Ecos against full buys." (On real data the eco pair is too few in most matchups.)
 6. **Head to head:** a short table: date, event, map, score as "{a_rounds}–{b_rounds}", winner's name. The current map's rows in bold. If empty, show `note`.
 7. **Phone width:** at 375 px, one column and no sideways scroll. Check it once in the browser's device toolbar.
 

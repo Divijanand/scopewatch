@@ -123,7 +123,7 @@ def test_head_to_head_newest_first_with_round_counts():
 
 
 def test_endpoint_validation(monkeypatch):
-    pytest.importorskip("httpx2")
+    pytest.importorskip("httpx")   # TestClient needs it
     from fastapi.testclient import TestClient
 
     server = pytest.importorskip("api.server")
@@ -149,3 +149,23 @@ def test_sentences_avoid_banned_words():
     for p in pairs:
         s = p["sentence"].lower()
         assert not any(w in s for w in bad)
+
+
+def test_head_to_head_date_filter_applies_to_both_orders():
+    con = duckdb.connect(":memory:")
+    con.execute("""CREATE TABLE games (series_id VARCHAR, game_id VARCHAR, map VARCHAR, started_at TIMESTAMP,
+                   event VARCHAR, stage VARCHAR, winner_team_id VARCHAR, team1_id VARCHAR, team2_id VARCHAR)""")
+    con.execute("CREATE TABLE team_rounds (game_id VARCHAR, team_id VARCHAR, won BOOLEAN)")
+    con.execute("""INSERT INTO games VALUES
+        ('s1','g1','ascent','2026-01-01','E','S','A','A','B'),
+        ('s2','g2','haven','2026-01-02','E','S','B','B','A'),
+        ('s3','g3','split','2026-03-01','E','S','A','A','B')""")
+    out = head_to_head(con, "A", "B", since="2026-02-01")
+    assert [r["game_id"] for r in out] == ["g3"]       # g1 (A first) and g2 (B first) are both before the date
+
+
+def test_duel_sentence_uses_real_minus_and_no_negative_zero():
+    d = {"fights.dry_duels": {"value": {"diff": -0.0004, "lo": -0.03, "hi": 0.03, "n": 40, "beyond_noise": False}}}
+    a = {"fights.dry_duels": {"value": {"diff": -0.013, "lo": -0.05, "hi": 0.02, "n": 40, "beyond_noise": False}}}
+    s = [p for p in facing_pairs("A", "Alpha", "B", "Bravo", a, {}, {}, d) if p["id"] == "dry_duels"][0]["sentence"]
+    assert "−1.3" in s and "are 0.0" in s and "-" not in s

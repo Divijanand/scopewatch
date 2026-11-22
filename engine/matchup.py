@@ -1,6 +1,8 @@
+"""Step 5e: two teams on one map. Pairs one team's attack measures with the other's defence measures,
+each against the league, and says where an edge is beyond noise. Built only from existing metric results."""
 from __future__ import annotations
 
-from engine.report import pct
+from engine.report import _signed, pct
 
 
 MIN_N = 20
@@ -44,7 +46,7 @@ def _num(v):
 
 
 def _dry(v):
-    return "too few rounds" if v is None else f"{v * 100:+.1f}"
+    return "too few rounds" if v is None else _signed(round(v * 100, 1))   # no "−0.0"
 
 
 def _metric(data: dict, key: str):
@@ -167,7 +169,7 @@ def top_lines(att_data, def_data, k=3):
 
 
 def head_to_head(con, a, b, since=None, until=None, limit=10):
-    where = ["(g.team1_id = ? AND g.team2_id = ?) OR (g.team1_id = ? AND g.team2_id = ?)"]
+    where = ["((g.team1_id = ? AND g.team2_id = ?) OR (g.team1_id = ? AND g.team2_id = ?))"]   # parenthesised: AND binds tighter than OR
     params = [a, b, b, a]
     if since:
         where.append("g.started_at >= ?")
