@@ -23,7 +23,7 @@ def vs_league(r, league):
 def _finding(fid, metric, title, headline, prepare, team, league, score):
     return dict(id=fid, metric=metric, title=title, headline=headline, prepare=prepare,
                 team=team["p"], league=league["p"], n=team["n"], lo=team["lo"], hi=team["hi"],
-                score=score, evidence={"metric": metric, "label": "Show the rounds"})
+                score=score, unit="rate", evidence={"metric": metric, "label": "Show the rounds"})
 
 
 def findings_att_executes(r):
@@ -81,7 +81,7 @@ def findings_dry_duels(r):
             id="fights.dry_duels.overall", metric="fights.dry_duels", title="Dry duels",
             headline=f"With no utility around they win {abs(v['diff']) * 100:.1f} points {'more' if more else 'fewer'} fights than the opener advantage predicts (likely {v['lo'] * 100:.1f} to {v['hi'] * 100:.1f}).",
             prepare="Don't take even dry duels: use utility first." if more else "Their players lose dry duels: take the fight without utility.",
-            team=v["diff"], league=0.0, n=v["n"], lo=v["lo"], hi=v["hi"], score=sc, evidence={"metric": "fights.dry_duels", "label": "Show the rounds"}
+            team=v["diff"], league=0.0, n=v["n"], lo=v["lo"], hi=v["hi"], score=sc, unit="diff", evidence={"metric": "fights.dry_duels", "label": "Show the rounds"}
         ))
     for b in r.get("breakdown", []):
         if b.get("bucket") == "agent" and b.get("beyond_noise"):
@@ -92,7 +92,7 @@ def findings_dry_duels(r):
                 id=f"fights.dry_duels.{b['agent']}", metric="fights.dry_duels", title=f"Duels on {b['agent'].capitalize()}",
                 headline=f"With no utility around they win {abs(b['diff']) * 100:.1f} points {'more' if more else 'fewer'} fights than the opener advantage predicts (likely {b['lo'] * 100:.1f} to {b['hi'] * 100:.1f}).",
                 prepare="Don't take even dry duels: use utility first." if more else "Their players lose dry duels: take the fight without utility.",
-                team=b["diff"], league=0.0, n=b["n"], lo=b["lo"], hi=b["hi"], score=sc, evidence={"metric": "fights.dry_duels", "label": "Show the rounds"}
+                team=b["diff"], league=0.0, n=b["n"], lo=b["lo"], hi=b["hi"], score=sc, unit="diff", evidence={"metric": "fights.dry_duels", "label": "Show the rounds"}
             ))
     return out
 
@@ -143,7 +143,7 @@ def findings_wpa(r):
                  f"(likely {v['lo']:+.1f} to {v['hi']:+.1f}), league {lm:+.1f}.",
         prepare=("Their Operator is a real threat: plan to trade it or deny it." if higher
                  else "Their Operator costs them more than most: bait it."),
-        team=v["mean"], league=lm, n=v.get("n"), lo=v["lo"], hi=v["hi"], score=sc,
+        team=v["mean"], league=lm, n=v.get("n"), lo=v["lo"], hi=v["hi"], score=sc, unit="points",
         evidence={"metric": "op.wpa", "label": "Show the rounds"})]
 
 

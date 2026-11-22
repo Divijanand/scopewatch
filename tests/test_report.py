@@ -154,3 +154,10 @@ def test_habit_without_a_league_percentile_is_skipped_not_a_crash():
     r = {"team.predictability": {"value": {}, "breakdown": [{"habit": "h", "label": "x", "choice": "A", "percentile": None,
                                                              "small_sample": False, "rate": HI, "league_median": None}]}}
     assert summarize(r, "attacker") == ([], NO_FINDINGS_NOTE)
+
+
+def test_every_finding_says_its_unit():
+    units = {f["id"]: f["unit"] for f in _every_finding()}
+    assert units["op.wpa"] == "points"
+    assert units["fights.dry_duels.overall"] == units["fights.dry_duels.jett"] == "diff"
+    assert {u for i, u in units.items() if not i.startswith(("op.", "fights."))} == {"rate"}
