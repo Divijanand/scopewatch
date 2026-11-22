@@ -1,5 +1,7 @@
 # Junie brief: step 5e, the matchup view (our team against the opponent on one map)
 
+> **Split into two narrow briefs:** give Junie `JUNIE_STEP5E_PART1.md` (backend), then `JUNIE_STEP5E_PART2.md` (UI). This file keeps the why.
+
 **Model:** GPT-5.3-codex. **Branch:** `deep-learning` (`git pull` first; start only once step 5d is committed). Follow `AGENTS.md`. Read `engine/report.py` (step 5d) and the step 5c fundamentals metrics first.
 
 ## Why
