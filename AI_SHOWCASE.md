@@ -46,6 +46,7 @@ A running log, written as the work happens. Each entry names the tool, the task,
 | 2026-11-21 | Claude Code (review) | Lesson for us: we edited Junie's files before saving a copy, so Junie's original step 5/5b work and the review share one commit per step this time | — |
 | 2026-11-22 | Junie (GPT-5.3-codex) | Step 5d part 1 (findings backend): backend findings summary scaffold, recon-before-league-median field, tendencies summary wiring, and backend tests | 2f810dc |
 | 2026-11-22 | Claude Code (review) | Junie's terminal hung for two hours on a typecheck that takes 8 s (the command ended with `exit`, which likely closed the shell it was waiting on), with 4 of 10 templates written. Committed Junie's work as it was, then added the six missing templates (Operator value, retakes, post-plant, economy, openings, closing). A run on real reports found a crash Junie's synthetic tests missed: a habit with no league percentile (`None`) broke the whole report. Fixed and tested | step 5d part 1 review commit |
+| 2026-11-22 | Junie (GPT-5.3-codex) | Step 5d part 2 (Report tab): new Report default tab, summary panel with evidence links, report/operator findings split, and UI wiring/tests checks | working tree |
 
 ## What we learned working with Junie
 

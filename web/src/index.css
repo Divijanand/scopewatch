@@ -297,3 +297,18 @@ button, select, input { font: inherit; color: inherit; }
 
 .ult-list button { grid-template-columns: minmax(9em, auto) 1fr 2.2em; }
 .ult-list .detail { white-space: normal; }
+
+/* report summary */
+.summary { margin: 0 0 22px; padding: 0 0 22px; border-bottom: 1px solid var(--rule); }
+.summary h2 { margin: 0 0 10px; font-size: 1.2rem; }
+.summary ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.summary li { display: grid; gap: 4px; }
+.summary-title { margin: 0; font-size: .8rem; color: var(--ink-3); }
+.summary-headline { margin: 0; font-size: 1rem; color: var(--ink); }
+.summary-prepare { margin: 0; color: var(--ink-2); }
+.summary-note { margin: 0 0 22px; color: var(--ink-2); }
+
+@media (max-width: 375px) {
+  .summary { overflow-x: hidden; }
+  .summary .bar { width: 100%; }
+}

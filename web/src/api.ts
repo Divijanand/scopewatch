@@ -57,6 +57,28 @@ export type Tendencies = Record<
   MetricResult
 >
 
+export type Finding = {
+  id: string
+  metric: string
+  title: string
+  headline: string
+  prepare: string
+  team: number
+  league: number
+  n: number
+  lo: number
+  hi: number
+  score: number | null
+  unit: 'rate' | 'points' | 'diff'
+  evidence: { metric: string; label: string }
+}
+
+export type TendenciesResponse = {
+  tendencies: Tendencies
+  summary: Finding[]
+  summary_note: string | null
+}
+
 export type Engagement = {
   round_key: string; event_id: string; kind: 'kill' | 'damage'; weapon: string; t_round: number
   t_plant: number | null; phase: string; opening_kill: boolean | null; att_id: string; att_name: string
@@ -120,7 +142,7 @@ const qs = (q: Record<string, string | number | undefined | null>) =>
 export const api = {
   catalog: () => get<Catalog>('/api/catalog'),
   teamMaps: (id: string) => get<TeamMap[]>(`/api/teams/${id}/maps`),
-  tendencies: (q: Query) => get<Tendencies>(`/api/weapons/tendencies?${qs(q)}`),
+  tendencies: (q: Query) => get<TendenciesResponse>(`/api/weapons/tendencies?${qs(q)}`),
   spatial: (q: Query) => get<Spatial>(`/api/spatial/operator?${qs(q)}`),
   utility: (q: Query & { group: UtilityGroup; agent?: string }) => get<UtilityLayer>(`/api/utility?${qs(q)}`),
   evidence: (q: Query & { metric: string; which: 'supporting' | 'contrary'; bucket?: string; group?: string; agent?: string; page?: number }) =>

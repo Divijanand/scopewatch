@@ -175,6 +175,7 @@ function WpaScale({ v }: { v: Wpa }) {
 
 type Props = {
   t: Tendencies
+  sections?: 'report' | 'operator'
   focus: Focus | null
   onFocus: (f: Focus | null) => void
   side: string | null
@@ -185,7 +186,9 @@ type Props = {
   onEvidence: (req: EvidenceRequest) => void
 }
 
-export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, onEvidence, focus, onFocus }: Props) {
+export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, onEvidence, focus, onFocus, sections = 'operator' }: Props) {
+  const showReport = sections === 'report'
+  const showOperator = sections === 'operator'
   const sideWord = side === 'attacker' ? 'attack' : side === 'defender' ? 'defense' : null
   const poss = t['op.possession_full_buy']
   const hold = t['op.holder_share']
@@ -249,7 +252,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
 
   return (
     <div className="findings">
-      {pred && pred.breakdown.length > 0 && (
+      {showOperator && pred && pred.breakdown.length > 0 && (
         <section>
           <h3>How predictable they are</h3>
           {score != null ? (
@@ -289,7 +292,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           </p>
         </section>
       )}
-      {recon && rv?.n >= (rv.min_league ?? 20) && rv.first_recon && (
+      {showReport && side === 'attacker' && <section><h3>Attack</h3></section>}
+      {showReport && recon && rv?.n >= (rv.min_league ?? 20) && rv.first_recon && (
         <section>
           <h3>Recon timing</h3>
           <p className="claim">
@@ -321,8 +325,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           })} />
         </section>
       )}
-      {duels?.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
-      {duels && dv?.total >= 20 && dv.diff != null && (
+      {showReport && duels?.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
+      {showReport && duels && dv?.total >= 20 && dv.diff != null && (
         <section>
           <h3>Dry duels</h3>
           <p className="claim">
@@ -353,7 +357,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           </p>
         </section>
       )}
-      {wv && wv.n > 0 && (
+      {showOperator && wv && wv.n > 0 && (
         <section>
           <h3>What the Operator is worth</h3>
           <p className="claim">
@@ -396,8 +400,9 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           })} />
         </section>
       )}
-      {wpa?.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
-      {rv5(retakes) && side === 'defender' && (
+      {showOperator && wpa?.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
+      {showReport && side === 'defender' && <section><h3>Defence</h3></section>}
+      {showReport && rv5(retakes) && side === 'defender' && (
         <section>
           <h3>Retakes</h3>
           <p className="claim">
@@ -417,7 +422,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           })} />
         </section>
       )}
-      {rv5(postPlant) && side === 'attacker' && ppl && (
+      {showReport && rv5(postPlant) && side === 'attacker' && ppl && (
         <section>
           <h3>Attack: before and after the plant</h3>
           <p className="claim">
@@ -437,7 +442,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           })} />
         </section>
       )}
-      {rv5(econ) && econ.value.pistol && (
+      {showReport && <section><h3>Economy</h3></section>}
+      {showReport && rv5(econ) && econ.value.pistol && (
         <section>
           <h3>Economy</h3>
           <p className="claim">
@@ -449,7 +455,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           <RateRows rows={econ.breakdown.map((b: any) => ({ label: ECO_LABEL[b.bucket] ?? b.label, r: b.rate, league: b.league }))} />
         </section>
       )}
-      {rv5(openings) && openings.value.first_blood && (
+      {showReport && <section><h3>Openings and duels</h3></section>}
+      {showReport && rv5(openings) && openings.value.first_blood && (
         <section>
           <h3>Openings</h3>
           <p className="claim">
@@ -482,7 +489,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           })} />
         </section>
       )}
-      {rv5(closing) && closing.value.comebacks && closing.value.throws && (
+      {showReport && <section><h3>Closing rounds</h3></section>}
+      {showReport && rv5(closing) && closing.value.comebacks && closing.value.throws && (
         <section>
           <h3>Closing rounds</h3>
           <p className="claim">
@@ -500,8 +508,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           })} />
         </section>
       )}
-      {closing?.warnings?.map((w: string) => <p key={w} className="hint">{w}</p>)}
-      {exe && side === 'attacker' && exe.breakdown.length > 0 && (
+      {showReport && closing?.warnings?.map((w: string) => <p key={w} className="hint">{w}</p>)}
+      {showReport && exe && side === 'attacker' && exe.breakdown.length > 0 && (
         <section>
           <h3>How they hit sites</h3>
           <p className="claim">
@@ -527,7 +535,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           )}
         </section>
       )}
-      {gamble?.rate && gamble.rate.n > 0 && (
+      {showOperator && gamble?.rate && gamble.rate.n > 0 && (
         <section>
           <h3>What the Operator buys them</h3>
           <p className="claim">
@@ -556,7 +564,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
         </section>
       )}
 
-      {esc?.rate && esc.rate.n > 0 && (
+      {showOperator && esc?.rate && esc.rate.n > 0 && (
         <section>
           <h3>Getting away with it</h3>
           <p className="claim">
@@ -588,7 +596,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
         </section>
       )}
 
-      {broke?.rate && broke.rate.n > 0 && (
+      {showOperator && broke?.rate && broke.rate.n > 0 && (
         <section>
           <h3>How it gets broken</h3>
           <p className="claim">
@@ -611,7 +619,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
         </section>
       )}
 
-      {s0 && (
+      {showOperator && s0 && (
         <section>
           <h3>Where they play it</h3>
           <p className="claim">
@@ -644,14 +652,14 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           })} />
         </section>
       )}
-      {setups && !s0 && setups.warnings.length === 0 && side && (
+      {showOperator && setups && !s0 && setups.warnings.length === 0 && side && (
         <section>
           <h3>Where they play it</h3>
           <p className="claim">They never fired an Operator on this map and side in these games.</p>
         </section>
       )}
 
-      {d0 && (
+      {showOperator && d0 && (
         <section>
           <h3>Where it dies</h3>
           <p className="claim">
@@ -677,7 +685,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           })} />
         </section>
       )}
-      <section>
+      {showOperator && <section>
         <h3>How often they have it</h3>
         <p className="claim">
           {poss.rate && poss.rate.n > 0
@@ -707,9 +715,9 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           supportingLabel: `With Operator (${poss.evidence_counts.supporting})`,
           contraryLabel: `Without (${poss.evidence_counts.contrary})`,
         })} />
-      </section>
+      </section>}
 
-      {main && (
+      {showOperator && main && (
         <section>
           <h3>Who carries it</h3>
           <p className="claim">
@@ -741,7 +749,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
         </section>
       )}
 
-      {kills > 0 && top && (
+      {showOperator && kills > 0 && top && (
         <section>
           <h3>When it fires</h3>
           <p className="claim">
@@ -772,7 +780,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
         </section>
       )}
 
-      {open.rate && open.rate.n > 0 && (
+      {showOperator && open.rate && open.rate.n > 0 && (
         <section>
           <h3>Opening duels</h3>
           <p className="claim">
@@ -788,7 +796,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
         </section>
       )}
 
-      {delta != null && (fv.n ?? 0) >= 5 && (
+      {showOperator && delta != null && (fv.n ?? 0) >= 5 && (
         <section>
           <h3>How far forward</h3>
           <p className="claim">
@@ -807,7 +815,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           <span className="evidence">Median of {fv.n} engagements. The hollow mark is the median for every team on this map and side.</span>
         </section>
       )}
-      {fwd.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
+      {showOperator && fwd.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
     </div>
   )
 }

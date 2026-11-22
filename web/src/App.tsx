@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, cap } from './api'
-import type { Catalog, Coverage, Query, Spatial, Team, TeamMap, Tendencies, UtilityGroup, UtilityLayer } from './api'
+import type { Catalog, Coverage, Finding, Query, Spatial, Team, TeamMap, Tendencies, UtilityGroup, UtilityLayer } from './api'
 import { GROUP_LABEL, UtilityFindings, UtilityMap } from './Utility'
 import type { UtilFocus } from './Utility'
 import { MapView } from './MapView'
@@ -8,6 +8,7 @@ import { Findings, bucketOf } from './Findings'
 import type { Bucket, Focus } from './Findings'
 import { EvidenceDrawer } from './Evidence'
 import type { EvidenceRequest } from './Evidence'
+import { Summary } from './Summary'
 
 type Side = 'attacker' | 'defender' | null
 
@@ -35,13 +36,15 @@ export default function App() {
   const [buckets, setBuckets] = useState<Set<Bucket>>(new Set())
   const [showDamage, setShowDamage] = useState(true)
   const [focus, setFocus] = useState<Focus | null>(null)
-  const [view, setView] = useState<'operator' | 'utility'>('operator')
+  const [view, setView] = useState<'report' | 'operator' | 'utility'>('report')
   const [group, setGroup] = useState<UtilityGroup>('setup')
   const [util, setUtil] = useState<UtilityLayer | null>(null)
   const [utilFocus, setUtilFocus] = useState<UtilFocus | null>(null)
   const [utilAgent, setUtilAgent] = useState<string | null>(null)
   const [agentList, setAgentList] = useState<{ agent: string; rounds: number }[]>([])
   const [tend, setTend] = useState<Tendencies | null>(null)
+  const [summary, setSummary] = useState<Finding[]>([])
+  const [summaryNote, setSummaryNote] = useState<string | null>(null)
   const [coverage, setCoverage] = useState<Coverage | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
   const [spatial, setSpatial] = useState<Spatial | null>(null)
@@ -76,7 +79,8 @@ export default function App() {
     setLoading(true)
     Promise.all([api.tendencies(q), api.spatial(q)])
       .then(([t, s]) => {
-        setTend(t.data); setCoverage(t.coverage ?? null); setWarnings(t.warnings); setSpatial(s.data); setError(null)
+        setTend(t.data.tendencies); setSummary(t.data.summary ?? []); setSummaryNote(t.data.summary_note ?? null)
+        setCoverage(t.coverage ?? null); setWarnings(t.warnings); setSpatial(s.data); setError(null)
       })
       .catch((e) => setError(`Couldn’t load this view: ${e.message}`))
       .finally(() => setLoading(false))
@@ -99,6 +103,12 @@ export default function App() {
   useEffect(() => { setUtilAgent(null) }, [teamId, map, side])
 
   const team: Team | undefined = catalog?.teams.find((t) => t.team_id === teamId)
+  const metricDefs = useMemo(() => {
+    const byId: Record<string, any> = {}
+    if (!tend) return byId
+    for (const m of Object.values(tend)) byId[m.metric.id] = m.metric
+    return byId
+  }, [tend])
   const engagements = useMemo(
     () => (spatial?.engagements ?? []).filter((e) => buckets.size === 0 || buckets.has(bucketOf(e.t_round))),
     [spatial, buckets],
@@ -145,7 +155,7 @@ export default function App() {
           <div className="title">
             <h1>{team.name}</h1>
             <p className="sub">
-              Operator report{map && <> for {cap(map)}</>}
+              Scouting report{map && <> for {cap(map)}</>}
               {side && <>, {side === 'attacker' ? 'attack' : 'defense'}</>}
               {playerName && <>, {playerName} only</>}.
             </p>
@@ -175,6 +185,7 @@ export default function App() {
           </nav>
 
           <div className="views" role="tablist" aria-label="What to show">
+            <button role="tab" aria-selected={view === 'report'} onClick={() => setView('report')}>Report</button>
             <button role="tab" aria-selected={view === 'operator'} onClick={() => setView('operator')}>Operator</button>
             <button role="tab" aria-selected={view === 'utility'} onClick={() => { setView('utility'); if (!side) setSide('defender') }}>Utility</button>
             {view === 'utility' && (
@@ -210,14 +221,17 @@ export default function App() {
             </div>
           ) : (
           <div className={loading ? 'board loading' : 'board'} aria-busy={loading}>
-            {map && catalog?.maps[map] && spatial && (
+            {view === 'operator' && map && catalog?.maps[map] && spatial && (
               <MapView mapName={map} meta={catalog.maps[map]} engagements={engagements}
                        spawns={spatial.spawns} showDamage={showDamage} focus={focus} />
             )}
             {tend && (
-              <Findings t={tend} side={side} activePlayer={player} onPlayer={setPlayer}
+              <>
+                {view === 'report' && <Summary findings={summary} note={summaryNote} metricDefs={metricDefs} onEvidence={setEvidence} />}
+                <Findings t={tend} side={side} activePlayer={player} onPlayer={setPlayer}
                         buckets={buckets} onBucket={toggleBucket} onEvidence={setEvidence}
-                        focus={focus} onFocus={setFocus} />
+                        focus={focus} onFocus={setFocus} sections={view === 'report' ? 'report' : 'operator'} />
+              </>
             )}
           </div>
           )}
