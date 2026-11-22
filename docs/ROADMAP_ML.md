@@ -57,11 +57,14 @@ What we're building, in order, and why. Definitions are in [ML_TAXONOMY.md](ML_T
 - **Status:** implemented by Junie (GPT-5.3-codex), reviewed and fixed (2026-11-21). Both cards are in the app.
 
 ## Step 5c: team fundamentals cards (retakes, post-plant, economy, openings, closing)
-- `team.retakes`: implemented, awaiting review.
-- `team.post_plant`: implemented, awaiting review.
-- `team.economy`: implemented, awaiting review.
-- `team.openings`: implemented, awaiting review.
-- `team.closing`: implemented, awaiting review.
+- **Why:** the fundamentals a coach asks about first, each against the league, from our own GRID tables. Match analysis (for example rib.gg's reports, read for ideas only) explains series with these measures.
+- `team.retakes`: plants faced and retaken, by numbers at the plant, and how often attackers get the spike down.
+- `team.post_plant`: how often the team plants, wins after planting (by numbers at the plant), and whether its attack losses come before or after the plant.
+- `team.economy`: full against full, full against eco or half, eco or half against full (pistols left out), pistol and bonus rounds.
+- `team.openings`: first blood rate and the round win rate after getting or giving it, with opening kills and deaths per player (worded as where openings go wrong, not blame).
+- `team.closing`: comebacks from a win chance of 20% or lower and throws from 80% or higher, from the win-probability model.
+- League tables by map in [LEAGUE_FUNDAMENTALS.md](LEAGUE_FUNDAMENTALS.md), series-bootstrap ranges, no team names.
+- **Status:** implemented by Junie (GPT-5.3-codex), reviewed and fixed (2026-11-22). All five cards are in the app.
 
 ## Step 6: deep learning, then rinse and repeat
 - **Model:** a sequence model over a round's events in order (time, event type, who, where, economy, utility), with players as a set (order-free) and agents and callouts as embeddings. Start small (GRU or a 2-layer transformer).

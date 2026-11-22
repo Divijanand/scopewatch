@@ -170,6 +170,53 @@ Shared definitions:
 - **Caveat:** Association, not cause.
 - **Caveat:** The model also scores the series it was trained on.
 
+## Closing rounds from win-probability swings (`team.closing` v1)
+
+**Question:** How often does this team complete comebacks and avoid throws?
+
+- **Population:** Team rounds that reached the comeback/throw win-probability thresholds.
+- **Numerator:** Comebacks won after <=0.20 and throws lost after >=0.80.
+- **Unit:** rounds
+- **Caveat:** Win probability is from event_wp.parquet and is from the attackers' view; defender view is flipped.
+- **Caveat:** A round is in a denominator only if it reached the threshold at least once.
+- **Caveat:** Association, not cause.
+
+## Economy outcomes (`team.economy` v1)
+
+**Question:** Which economy matchups and pistol/bonus spots does this team convert?
+
+- **Population:** Team rounds with known economy labels for both teams.
+- **Numerator:** Rounds won in each matchup or special round type.
+- **Unit:** rounds
+- **Caveat:** Pistol rounds are rounds 1 and 13 only (12-round halves). Overtime rounds are never pistols.
+- **Caveat:** Bonus rounds are rounds 2 and 14 only, and only when the same team won the prior pistol.
+- **Caveat:** 'Scrappy' combines eco and half buys. Buy matchups leave out pistol rounds, which have their own line.
+- **Caveat:** Association, not cause.
+
+## Opening fights (`team.openings` v1)
+
+**Question:** How often does this team get first blood, and what follows from it?
+
+- **Population:** Team rounds with a first kill in pre-plant or post-plant phases.
+- **Numerator:** Rounds with first blood for the team, and wins in each opening state.
+- **Unit:** rounds
+- **Caveat:** First blood is the first kill by (ts_ms, seq) in pre-plant/post-plant phases.
+- **Caveat:** A trade kill is still the second kill.
+- **Caveat:** Player breakdown is descriptive; not blame.
+- **Caveat:** Association, not cause.
+
+## Attack plants and post-plant outcomes (`team.post_plant` v1)
+
+**Question:** How often does this team reach a plant on attack, and how often does it win after planting?
+
+- **Population:** Attack rounds for one team on one map and side/date filter.
+- **Numerator:** Rounds with a plant, and planted rounds won.
+- **Unit:** attack rounds
+- **Caveat:** Numbers at the plant use alive counts at or before plant t_round, including revives.
+- **Caveat:** Buckets are from the attackers' view: ahead/even/behind.
+- **Caveat:** Pre-plant attack losses are losses in rounds with no plant.
+- **Caveat:** Association, not cause.
+
 ## How predictable they are (`team.predictability` v1)
 
 **Question:** If an opponent always guessed this team's most common choice, how often would they be right, compared with other teams on this map and side?
@@ -181,6 +228,17 @@ Shared definitions:
 - **Caveat:** The score is the share of other teams they are more predictable than, averaged over the habits with enough rounds. Teams with fewer than 12 rounds for a habit aren't compared.
 - **Caveat:** A small sample makes anyone look predictable: the team's own result is flagged below 12 rounds.
 - **Caveat:** Predictable isn't bad on its own: a default that wins is a default for a reason. It's what an opponent can prepare for.
+
+## Retakes after facing a plant (`team.retakes` v1)
+
+**Question:** When this team defends and faces a plant, how often does it retake?
+
+- **Population:** Defender rounds where the team faced a plant on one map and side/date filter.
+- **Numerator:** Those rounds the defenders won.
+- **Unit:** plants faced
+- **Caveat:** Numbers at the plant use alive counts at or before plant t_round, including revives.
+- **Caveat:** Buckets are from the attackers' view: ahead/even/behind.
+- **Caveat:** Association, not cause.
 
 ## Ultimates (`ult.usage` v1)
 

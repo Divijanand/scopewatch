@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from functools import lru_cache
+from pathlib import Path
 
-import duckdb
+import numpy as np
 import pandas as pd
 
-from engine.config import DB_PATH, V2_DIR
+from engine.config import V2_DIR
 from engine.model.winprob import AliveTracker, load_revives
 from .core import Filters, MetricDef, MetricResult, Rate, metric, ranked
 from .executes import MIN_LEAGUE
@@ -19,8 +19,7 @@ ECO_BUCKETS = (
     ("full_vs_full", "full", ("full",)),
     ("full_vs_anti", "full", ("eco", "half")),
     ("scrappy_vs_full", "eco_half", ("full",)),
-    ("half_vs_half", "half", ("half",)),
-)
+)   # half against half is too rare to rate (24 rounds league-wide); pistols have their own line
 
 RETAKES = MetricDef(
     id="team.retakes",
@@ -64,7 +63,7 @@ ECONOMY = MetricDef(
     caveats=(
         "Pistol rounds are rounds 1 and 13 only (12-round halves). Overtime rounds are never pistols.",
         "Bonus rounds are rounds 2 and 14 only, and only when the same team won the prior pistol.",
-        "'Scrappy' combines eco and half buys.",
+        "'Scrappy' combines eco and half buys. Buy matchups leave out pistol rounds, which have their own line.",
         "Association, not cause.",
     ),
 )
@@ -120,28 +119,36 @@ def _bucket(att_alive: int, def_alive: int) -> str:
     return "even"
 
 
+_ROUNDS_SQL = """
+    SELECT t.round_key, t.series_id, t.map, t.round_no, t.side, t.won, t.team_id, t.economy,
+           t.started_at, p.round_key IS NOT NULL AS planted, p.plant_t, 'plant' AS plant_result,
+           opp.team_id AS opp_team_id, opp.economy AS opp_economy
+    FROM team_rounds t
+    LEFT JOIN (SELECT round_key, min(t_round) AS plant_t FROM objectives WHERE kind = 'plant' GROUP BY 1) p
+           ON p.round_key = t.round_key
+    JOIN team_rounds opp ON opp.round_key = t.round_key AND opp.team_id <> t.team_id
+    WHERE {where}
+    ORDER BY t.round_key
+"""
+
+# League numbers are the same for every team on a map and side: computed once, kept here.
+# Keyed by (what, map, side, since, until); the store is read-only while the server runs. Tests clear it.
+_LEAGUE: dict[tuple, object] = {}
+
+
+def _cached(key: tuple, build):
+    if key not in _LEAGUE:
+        _LEAGUE[key] = build()
+    return _LEAGUE[key]
+
+
 def _team_rounds(con, f: Filters):
     w, p = f.where("t")
-    return con.execute(f"""
-        SELECT t.round_key, t.series_id, t.map, t.round_no, t.side, t.won, t.team_id, t.economy,
-               t.started_at, o.round_key IS NOT NULL AS planted,
-               o.t_round AS plant_t,
-               o.kind AS plant_result,
-               opp.team_id AS opp_team_id,
-               opp.economy AS opp_economy
-        FROM team_rounds t
-        LEFT JOIN (
-            SELECT round_key, team_id, min(t_round) AS t_round,
-                   arg_min(kind, ts_ms) AS kind
-            FROM objectives
-            WHERE kind IN ('plant', 'defuse', 'detonation')
-            GROUP BY 1, 2
-        ) o ON o.round_key = t.round_key
-           AND ((t.side = 'attacker' AND o.team_id = t.team_id) OR (t.side = 'defender' AND o.team_id <> t.team_id))
-        JOIN team_rounds opp ON opp.round_key = t.round_key AND opp.team_id <> t.team_id
-        WHERE {w}
-        ORDER BY t.round_key
-    """, p).fetchall()
+    return con.execute(_ROUNDS_SQL.format(where=w), p).fetchall()
+
+
+def _game(round_key: str) -> str:
+    return round_key.rsplit(":", 1)[0]
 
 
 def _kills_by_round(con, round_keys: list[str]):
@@ -203,48 +210,24 @@ def _first_blood(con, round_keys: list[str]):
             for rk, att_t, vic_t, att_id, att_name, vic_id, vic_name in rows}
 
 
-@lru_cache(maxsize=128)
-def _league_cached(db_path: str, map_name: str | None, side: str | None, since: str | None, until: str | None):
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        fs = Filters(team_id="", map=map_name, side=side, since=since, until=until)
-        where = []
-        params = []
-        if fs.map:
-            where.append("t.map = ?")
-            params.append(fs.map)
-        if fs.side:
-            where.append("t.side = ?")
-            params.append(fs.side)
-        tw, tp = _time_clause(since, until)
-        where += tw
-        params += tp
-        clause = " AND ".join(where) if where else "1=1"
-        return con.execute(f"""
-            SELECT t.round_key, t.series_id, t.map, t.round_no, t.side, t.won, t.team_id, t.economy,
-                   t.started_at, o.round_key IS NOT NULL AS planted,
-                   o.t_round AS plant_t,
-                   o.kind AS plant_result,
-                   opp.team_id AS opp_team_id,
-                   opp.economy AS opp_economy
-            FROM team_rounds t
-            LEFT JOIN (
-                SELECT round_key, team_id, min(t_round) AS t_round,
-                       arg_min(kind, ts_ms) AS kind
-                FROM objectives
-                WHERE kind IN ('plant', 'defuse', 'detonation')
-                GROUP BY 1, 2
-            ) o ON o.round_key = t.round_key
-               AND ((t.side = 'attacker' AND o.team_id = t.team_id) OR (t.side = 'defender' AND o.team_id <> t.team_id))
-            JOIN team_rounds opp ON opp.round_key = t.round_key AND opp.team_id <> t.team_id
-            WHERE {clause}
-        """, params).fetchall()
-    finally:
-        con.close()
+def _league_rounds(con, f: Filters):
+    def build():
+        w, p = [], []
+        if f.map:
+            w.append("t.map = ?"); p.append(f.map)
+        if f.side:
+            w.append("t.side = ?"); p.append(f.side)
+        tw, tp = _time_clause(f.since, f.until)
+        return con.execute(_ROUNDS_SQL.format(where=" AND ".join(w + tw) or "1=1"), p + tp).fetchall()
+    return _cached(("rounds", f.map, f.side, f.since, f.until), build)
 
 
-def _league_rounds(_con, f: Filters):
-    return _league_cached(DB_PATH.as_posix(), f.map, f.side, f.since, f.until)
+def _league_plant_alive(con, f: Filters, lplants):
+    return _cached(("plant_alive", f.map, f.side, f.since, f.until), lambda: _plant_alive(con, lplants))
+
+
+def _league_first_blood(con, f: Filters, lrows):
+    return _cached(("first_blood", f.map, f.side, f.since, f.until), lambda: _first_blood(con, [r[0] for r in lrows]))
 
 
 @metric(RETAKES)
@@ -265,13 +248,15 @@ def retakes(con, f: Filters) -> MetricResult:
     res.contrary = sorted(r[0] for r in won)
     lrows = _league_rounds(con, fd)
     lplants = [r for r in lrows if r[9]]
-    lalive = _plant_alive(con, lplants)
+    lalive = _league_plant_alive(con, fd, lplants)
     by = {b: [r for r in plants if alive.get(r[0], {}).get("bucket") == b] for b in PLANT_BUCKETS}
     lby = {b: [r for r in lplants if lalive.get(r[0], {}).get("bucket") == b] for b in PLANT_BUCKETS}
     res.value = dict(
         n=n,
         retake=Rate.of(len(won), n),
         league_retake=Rate.of(sum(1 for r in lplants if r[5]), len(lplants)) if len(lplants) >= MIN_LEAGUE else None,
+        plants_faced=Rate.of(n, len(rows)),
+        league_plants_faced=Rate.of(len(lplants), len(lrows)) if len(lrows) >= MIN_LEAGUE else None,
     )
     for b in PLANT_BUCKETS:
         rs = by[b]
@@ -306,7 +291,7 @@ def post_plant(con, f: Filters) -> MetricResult:
     lplanted = [r for r in lrows if r[9]]
     llosses = [r for r in lrows if not r[5]]
     lpre_losses = [r for r in llosses if not r[9]]
-    lalive = _plant_alive(con, lplanted)
+    lalive = _league_plant_alive(con, fa, lplanted)
     lby = {b: [r for r in lplanted if lalive.get(r[0], {}).get("bucket") == b] for b in PLANT_BUCKETS}
     res.value = dict(
         n=n,
@@ -333,8 +318,7 @@ def post_plant(con, f: Filters) -> MetricResult:
     return res
 
 
-def _eco_group(econ: str | None):
-    return "eco_half" if econ in ("eco", "half") else econ
+OWN = {"full": ("full",), "eco_half": ("eco", "half"), "half": ("half",)}
 
 
 def _is_pistol(round_no: int) -> bool:
@@ -349,15 +333,13 @@ def economy(con, f: Filters) -> MetricResult:
     if not rows:
         return res
     lrows = [r for r in _league_rounds(con, f) if r[7] is not None and r[13] is not None]
-    pwin = {(r[2], r[3], r[6]): r[5] for r in rows if _is_pistol(r[3])}
-    lpwin = {(r[2], r[3], r[6]): r[5] for r in lrows if _is_pistol(r[3])}
+    pwin = {(_game(r[0]), r[3], r[6]): r[5] for r in rows if _is_pistol(r[3])}
+    lpwin = {(_game(r[0]), r[3], r[6]): r[5] for r in lrows if _is_pistol(r[3])}
 
     def filt(xs, own, opp):
         out = []
         for r in xs:
-            oe = _eco_group(r[7])
-            pe = r[13]
-            if oe == own and pe in opp:
+            if r[7] in OWN[own] and r[13] in opp and not _is_pistol(r[3]):
                 out.append(r)
         return out
 
@@ -373,8 +355,8 @@ def economy(con, f: Filters) -> MetricResult:
         ))
     pistols = [r for r in rows if _is_pistol(r[3])]
     lpistols = [r for r in lrows if _is_pistol(r[3])]
-    bonus = [r for r in rows if r[3] in (2, 14) and pwin.get((r[2], r[3] - 1, r[6]))]
-    lbonus = [r for r in lrows if r[3] in (2, 14) and lpwin.get((r[2], r[3] - 1, r[6]))]
+    bonus = [r for r in rows if r[3] in (2, 14) and pwin.get((_game(r[0]), r[3] - 1, r[6]))]
+    lbonus = [r for r in lrows if r[3] in (2, 14) and lpwin.get((_game(r[0]), r[3] - 1, r[6]))]
     res.value.update(dict(
         pistol=Rate.of(sum(1 for r in pistols if r[5]), len(pistols)),
         league_pistol=Rate.of(sum(1 for r in lpistols if r[5]), len(lpistols)) if len(lpistols) >= MIN_LEAGUE else None,
@@ -398,7 +380,7 @@ def openings(con, f: Filters) -> MetricResult:
     if not used:
         return res
     lrows = _league_rounds(con, f)
-    lfb = _first_blood(con, [r[0] for r in lrows])
+    lfb = _league_first_blood(con, f, lrows)
     lused = [r for r in lrows if r[0] in lfb]
 
     got = [r for r in used if fb[r[0]]["att_team"] == r[6]]
@@ -440,61 +422,66 @@ def openings(con, f: Filters) -> MetricResult:
     return res
 
 
+def _round_extremes(con) -> pd.DataFrame:
+    """Per round and side: the lowest and highest win chance that side had after any event, and whether it won.
+    Built once per event_wp file version (event_wp is from the attackers' view; flipped for defenders)."""
+    path = Path(EVENT_WP_PARQUET)
+
+    def build():
+        wp = con.execute(f"""
+            SELECT round_key, min(wp_after) AS lo, max(wp_after) AS hi
+            FROM read_parquet('{path.as_posix()}') GROUP BY 1
+        """).df()
+        tr = con.execute("SELECT round_key, series_id, map, side, team_id, won, started_at FROM team_rounds").df()
+        m = tr.merge(wp, on="round_key", how="inner")
+        att = m["side"] == "attacker"
+        m["min_wp"] = np.where(att, m["lo"], 1.0 - m["hi"])
+        m["max_wp"] = np.where(att, m["hi"], 1.0 - m["lo"])
+        m["team_id"] = m["team_id"].astype(str)
+        m["started_at"] = pd.to_datetime(m["started_at"])
+        return m.drop(columns=["lo", "hi"])
+    return _cached(("closing", path.as_posix(), path.stat().st_mtime), build)
+
+
+def _filter_rounds(m: pd.DataFrame, f: Filters, team: bool) -> pd.DataFrame:
+    keep = np.ones(len(m), dtype=bool)
+    if team:
+        keep &= (m["team_id"] == str(f.team_id)).to_numpy()
+    if f.map:
+        keep &= (m["map"] == f.map).to_numpy()
+    if f.side:
+        keep &= (m["side"] == f.side).to_numpy()
+    if f.since:
+        keep &= (m["started_at"] >= pd.Timestamp(f.since)).to_numpy()
+    if f.until:
+        keep &= (m["started_at"] < pd.Timestamp(f.until)).to_numpy()
+    return m[keep]
+
+
 @metric(CLOSING)
 def closing(con, f: Filters) -> MetricResult:
     res = MetricResult(CLOSING, f)
-    if not EVENT_WP_PARQUET.exists():
+    if not Path(EVENT_WP_PARQUET).exists():
         res.warnings.append("Run python -m engine.model.wpa first")
         return res
-    tr = pd.DataFrame(con.execute("SELECT round_key, series_id, map, side, team_id, won, started_at FROM team_rounds").fetchall(),
-                      columns=["round_key", "series_id", "map", "side", "team_id", "won", "started_at"])
-    df = con.execute(f"SELECT round_key, wp_before, wp_after FROM read_parquet('{EVENT_WP_PARQUET.as_posix()}')").df()
-    m = df.merge(tr, on="round_key", how="inner")
-    m = m[m["team_id"] == f.team_id]
-    if f.map:
-        m = m[m["map"] == f.map]
-    if f.side:
-        m = m[m["side"] == f.side]
-    if f.since:
-        m = m[m["started_at"] >= f.since]
-    if f.until:
-        m = m[m["started_at"] < f.until]
-    if m.empty:
+    m = _round_extremes(con)
+    g = _filter_rounds(m, f, team=True)
+    if g.empty:
         return res
-    m["wp_team"] = m["wp_after"]
-    m.loc[m["side"] == "defender", "wp_team"] = 1.0 - m.loc[m["side"] == "defender", "wp_after"]
-    g = m.groupby("round_key").agg(series_id=("series_id", "first"), map=("map", "first"), won=("won", "first"),
-                                    min_wp=("wp_team", "min"), max_wp=("wp_team", "max")).reset_index()
-    cb_den = g[g["min_wp"] <= 0.2]
-    th_den = g[g["max_wp"] >= 0.8]
-    cb = cb_den[cb_den["won"]]
-    th = th_den[~th_den["won"]]
+    lg = _filter_rounds(m, f, team=False)     # one row per round and side, so "both sides" counts each side once
 
-    ltr = pd.DataFrame(con.execute("SELECT round_key, side, won, started_at, map FROM team_rounds").fetchall(),
-                       columns=["round_key", "side", "won", "started_at", "map"])
-    l = df.merge(ltr, on="round_key", how="inner")
-    if f.map:
-        l = l[l["map"] == f.map]
-    if f.side:
-        l = l[l["side"] == f.side]
-    if f.since:
-        l = l[l["started_at"] >= f.since]
-    if f.until:
-        l = l[l["started_at"] < f.until]
-    l["wp_team"] = l["wp_after"]
-    l.loc[l["side"] == "defender", "wp_team"] = 1.0 - l.loc[l["side"] == "defender", "wp_after"]
-    lg = l.groupby("round_key").agg(won=("won", "first"), min_wp=("wp_team", "min"), max_wp=("wp_team", "max")).reset_index()
-    lcb_den = lg[lg["min_wp"] <= 0.2]
-    lth_den = lg[lg["max_wp"] >= 0.8]
+    def rates(d):
+        cb_den, th_den = d[d["min_wp"] <= 0.2], d[d["max_wp"] >= 0.8]
+        return cb_den, cb_den[cb_den["won"]], th_den, th_den[~th_den["won"]]
 
+    cb_den, cb, th_den, th = rates(g)
+    lcb_den, lcb, lth_den, lth = rates(lg)
     res.value = dict(
-        n=int(g.shape[0]),
-        comebacks=Rate.of(int(cb.shape[0]), int(cb_den.shape[0])),
-        league_comebacks=Rate.of(int(lg[(lg["min_wp"] <= 0.2) & (lg["won"])].shape[0]), int(lcb_den.shape[0]))
-        if int(lcb_den.shape[0]) >= MIN_LEAGUE else None,
-        throws=Rate.of(int(th.shape[0]), int(th_den.shape[0])),
-        league_throws=Rate.of(int(lg[(lg["max_wp"] >= 0.8) & (~lg["won"])].shape[0]), int(lth_den.shape[0]))
-        if int(lth_den.shape[0]) >= MIN_LEAGUE else None,
+        n=int(len(g)),
+        comebacks=Rate.of(len(cb), len(cb_den)),
+        league_comebacks=Rate.of(len(lcb), len(lcb_den)) if len(lcb_den) >= MIN_LEAGUE else None,
+        throws=Rate.of(len(th), len(th_den)),
+        league_throws=Rate.of(len(lth), len(lth_den)) if len(lth_den) >= MIN_LEAGUE else None,
     )
     res.supporting = sorted(th["round_key"].tolist())
     res.contrary = sorted(cb["round_key"].tolist())
