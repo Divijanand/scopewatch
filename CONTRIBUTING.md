@@ -10,7 +10,7 @@ Two people, plus Junie and Claude Code, on one codebase. These rules keep that s
 
 ## The non-negotiables
 - **Never commit data.** No `*.parquet`, `*.duckdb`, `*.sqlite`, `*.npz`, `*.zst`, `*.jsonl`, minimap PNGs or anything under `cache/`. Run `git status` before every commit, never `git add -A`, and add files by name.
-- **Never share the demo password** in git, Discord or chat. It goes only in Devpost's judges-only field.
+- **The live demo is open** since 2026-11-21 (D-022). If a password is ever put back, never share it in git, Discord or chat.
 - **Tests use synthetic data**: invented teams and coordinates, never extracts of the corpus.
 
 ## How we work now that there are two of us

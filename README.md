@@ -68,7 +68,7 @@ Match data is provided by GRID and is © GRID eSports GmbH and Riot Games, Inc. 
 
 ## Hosted demo
 
-The judged build is a password-protected web app, private to the hackathon judges (organiser-approved; the GRID licence doesn't allow derived data on an open site). It runs at **https://scopewatch-c9.fly.dev**; the login is in the judges' section of the Devpost submission. Deployment steps: [docs/DEPLOY.md](docs/DEPLOY.md).
+The judged build runs at **https://scopewatch-c9.fly.dev**, open with no login. The organisers confirmed on 2026-11-21 that the app may serve statistics and per-event data derived from the GRID files for the hackathon (D-022). Deployment steps: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Built with JetBrains
 

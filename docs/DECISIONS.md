@@ -192,7 +192,7 @@ For each habit, the team's most common choice is the opponent's best guess, and 
 - Ties count as not less predictable, which is conservative.
 - Predictable isn't bad on its own; the UI says so.
 
-## D-019: The judged build is a password-protected container (2026-11-18)
+## D-019: The judged build is a password-protected container (2026-11-18; password removed by D-022)
 
 **Decision:** The hosted demo is one container: FastAPI serves both the API and the built web app. HTTP Basic auth covers every path except `/health` (`api/auth.py`). The image sets `SCOPEWATCH_REQUIRE_AUTH=1`, so it refuses to start without `SCOPEWATCH_PASSWORD`. The data bundle (`scripts/bundle_demo.py`, git-ignored `cache/demo/`) holds only what the app reads: the store, the two WPA score files, the map images and index, and the callout list. Fly.io builds the image remotely into its private registry. Steps are in DEPLOY.md.
 
@@ -225,3 +225,15 @@ For each habit, the team's most common choice is the opponent's best guess, and 
 **Evidence:** All 1,228 had an empty agent, $0 loadout, 0 events and 0 casts. After the rebuild, 85,048 side-rounds have 5 players. The 8 side-rounds that still have 6 come from one broken game start (rounds 1–3) where nobody has any events. Player-rounds 426,516 → 425,288; distinct team comps 873 → 831.
 
 **Effect:** No metric that counts real activity changes, because phantoms never held an Operator, spent credits or appeared in events. Counts of agents and comps are now correct.
+
+## D-022: The hosted demo is open, with no password (2026-11-21)
+
+**Decision:** The live demo at https://scopewatch-c9.fly.dev no longer asks for a login. This supersedes the password part of D-019; the container and the data bundle are unchanged.
+
+**Why:** On 2026-11-21 the organisers confirmed on the Cloud9 Discord that apps may serve statistics, insights and per-event data derived from the real GRID files for the hackathon, and that an app which can't be used without an extra step is poor for judges. The password only existed because we read the licence as forbidding derived data on an open site. Without it, judges open the demo with one click.
+
+**How:** Fly secrets override the image's environment: `SCOPEWATCH_PASSWORD` and `SCOPEWATCH_USER` were unset and `SCOPEWATCH_REQUIRE_AUTH=0` set, so the machine restarted on the same image. `api/auth.py` is unchanged and a password can be put back with one command (DEPLOY.md).
+
+**Still true:** the repo holds code only; the data bundle goes only to Fly's private registry; `robots.txt` disallows all crawling; per-team numbers stay out of `docs/`.
+
+**Evidence:** Checked live on 2026-11-21: the page, `/api/catalog`, `/docs` and `/health` return 200 with no login, the app loads Cloud9's report in the browser, and `robots.txt` returns `Disallow: /`.

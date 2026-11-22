@@ -1,8 +1,12 @@
-# Deploying the hosted demo (judges only)
+# Deploying the hosted demo
 
-**Live:** https://scopewatch-c9.fly.dev (Fly.io app `scopewatch-c9`, one shared-cpu-1x machine with 1 GB in `sjc`), deployed 2026-11-19. Username `judge`; the password goes to judges only.
+**Live:** https://scopewatch-c9.fly.dev (Fly.io app `scopewatch-c9`, one shared-cpu-1x machine with 1 GB in `sjc`), deployed 2026-11-19. **Open, no login, since 2026-11-21** (D-022).
 
-The organisers allow, and encourage, a **password-protected** web demo for judges (Cloud9 Discord, 2026-11-18). The GRID licence still forbids derived data on an open website, so:
+**How it's open now:** on 2026-11-21 the organisers confirmed that apps may serve statistics and per-event data derived from the GRID files for the hackathon. We unset the `SCOPEWATCH_PASSWORD` and `SCOPEWATCH_USER` secrets and set the secret `SCOPEWATCH_REQUIRE_AUTH=0`, which overrides the image's `=1`. The image itself wasn't rebuilt. `robots.txt` still disallows all crawling. Without the password the noindex header and the hidden API docs page no longer apply; both are tied to auth in the current image. Checked live on 2026-11-21: the page, `/api/catalog` and `/health` return 200 with no login.
+
+To put the password back: `fly secrets set SCOPEWATCH_PASSWORD='<strong-password>' SCOPEWATCH_USER=judge -a scopewatch-c9` (and unset `SCOPEWATCH_REQUIRE_AUTH`, so the image's refuse-to-start check applies again).
+
+The rest of this page describes the original password-protected setup (2026-11-18 to 2026-11-21). Then, the organisers allowed and encouraged a **password-protected** web demo for judges, and we read the licence as forbidding derived data on an open website, so:
 
 - Every page, API call and map image needs the password (`api/auth.py`). Only `/health` is open, and it returns no data.
 - The deployed image **refuses to start without a password** (`SCOPEWATCH_REQUIRE_AUTH=1`).
