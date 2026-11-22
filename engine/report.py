@@ -10,6 +10,11 @@ def pct(x: float) -> str:
     return f"{round(x * 100)}%"
 
 
+def _signed(x: float) -> str:
+    """+6.0 / −3.2 with a real minus sign, as the cards print points."""
+    return f"{'+' if x > 0 else '−' if x < 0 else ''}{abs(x):.1f}"
+
+
 def vs_league(r, league):
     """Beyond noise when the league rate is outside the team's range. Score = gap in half-range widths."""
     if not r or not league or r.get("p") is None or league.get("p") is None or r.get("small_sample"):
@@ -38,7 +43,7 @@ def findings_att_executes(r):
                 else f"{site} is rare for them: they mostly go elsewhere.")
         out.append(_finding(
             f"att.executes.{site}", "att.executes", "Site choice",
-            f"They plant on {site} in {pct(tm['p'])} of attack rounds (likely {pct(tm['lo'])}-{pct(tm['hi'])}), league {pct(lg['p'])}.", prep, tm, lg, s
+            f"They plant on {site} in {pct(tm['p'])} of attack rounds (likely {pct(tm['lo'])}–{pct(tm['hi'])}), league {pct(lg['p'])}.", prep, tm, lg, s
         ))
     return out
 
@@ -53,7 +58,7 @@ def findings_recon(r):
                 if early["p"] > 0.5 else "Their first recon comes late: early pressure meets them before their info.")
         out.append(_finding(
             "util.recon_timing.before", "util.recon_timing", "Recon timing",
-            f"Their first recon comes before the league's median time in {pct(early['p'])} of rounds (likely {pct(early['lo'])}-{pct(early['hi'])}), against half for the league.",
+            f"Their first recon comes before the league's median time in {pct(early['p'])} of rounds (likely {pct(early['lo'])}–{pct(early['hi'])}), against half for the league.",
             prep, early, {"p": 0.5}, s,
         ))
     late, on = v.get("late"), v.get("on_time")
@@ -64,7 +69,7 @@ def findings_recon(r):
             sc = abs(late["p"] - on["p"]) / hw
             out.append(_finding(
                 "util.recon_timing.late", "util.recon_timing", "When recon comes late",
-                f"When their first recon comes late they win {pct(late['p'])} (likely {pct(late['lo'])}-{pct(late['hi'])}), against {pct(on['p'])} on time.",
+                f"When their first recon comes late they win {pct(late['p'])} (likely {pct(late['lo'])}–{pct(late['hi'])}), against {pct(on['p'])} on time.",
                 "Deny or delay their first recon." if late["p"] < on["p"] else "", late, on, sc,
             ))
     return [f for f in out if f["prepare"]]
@@ -79,7 +84,7 @@ def findings_dry_duels(r):
         more = v["diff"] > 0
         out.append(dict(
             id="fights.dry_duels.overall", metric="fights.dry_duels", title="Dry duels",
-            headline=f"With no utility around they win {abs(v['diff']) * 100:.1f} points {'more' if more else 'fewer'} fights than the opener advantage predicts (likely {v['lo'] * 100:.1f} to {v['hi'] * 100:.1f}).",
+            headline=f"With no utility around they win {abs(v['diff']) * 100:.1f} points {'more' if more else 'fewer'} fights than the opener advantage predicts (likely {_signed(v['lo'] * 100)} to {_signed(v['hi'] * 100)} points).",
             prepare="Don't take even dry duels: use utility first." if more else "Their players lose dry duels: take the fight without utility.",
             team=v["diff"], league=0.0, n=v["n"], lo=v["lo"], hi=v["hi"], score=sc, unit="diff", evidence={"metric": "fights.dry_duels", "label": "Show the rounds"}
         ))
@@ -90,7 +95,7 @@ def findings_dry_duels(r):
             more = b["diff"] > 0
             out.append(dict(
                 id=f"fights.dry_duels.{b['agent']}", metric="fights.dry_duels", title=f"Duels on {b['agent'].capitalize()}",
-                headline=f"With no utility around they win {abs(b['diff']) * 100:.1f} points {'more' if more else 'fewer'} fights than the opener advantage predicts (likely {b['lo'] * 100:.1f} to {b['hi'] * 100:.1f}).",
+                headline=f"With no utility around they win {abs(b['diff']) * 100:.1f} points {'more' if more else 'fewer'} fights than the opener advantage predicts (likely {_signed(b['lo'] * 100)} to {_signed(b['hi'] * 100)} points).",
                 prepare="Don't take even dry duels: use utility first." if more else "Their players lose dry duels: take the fight without utility.",
                 team=b["diff"], league=0.0, n=b["n"], lo=b["lo"], hi=b["hi"], score=sc, unit="diff", evidence={"metric": "fights.dry_duels", "label": "Show the rounds"}
             ))
@@ -109,7 +114,7 @@ def findings_predictability(r):
             continue
         out.append(_finding(
             f"team.predictability.{b['habit']}", "team.predictability", f"Predictable: {b['label']}",
-            f"{b['label']}: they pick {b['choice']} in {pct(rt['p'])} of rounds (likely {pct(rt['lo'])}-{pct(rt['hi'])}), more predictable than {b['percentile']}% of teams.",
+            f"{b['label']}: they pick {b['choice']} in {pct(rt['p'])} of rounds (likely {pct(rt['lo'])}–{pct(rt['hi'])}), more predictable than {b['percentile']}% of teams.",
             f"Prepare for {b['choice']}.", rt, lg, s
         ))
     return out
@@ -139,8 +144,8 @@ def findings_wpa(r):
     higher = v["mean"] > lm
     return [dict(
         id="op.wpa", metric="op.wpa", title="Operator value",
-        headline=f"An Operator round is worth {v['mean']:+.1f} points of round-win chance to them "
-                 f"(likely {v['lo']:+.1f} to {v['hi']:+.1f}), league {lm:+.1f}.",
+        headline=f"An Operator round is worth {_signed(v['mean'])} points of round-win chance to them "
+                 f"(likely {_signed(v['lo'])} to {_signed(v['hi'])}), league {_signed(lm)}.",
         prepare=("Their Operator is a real threat: plan to trade it or deny it." if higher
                  else "Their Operator costs them more than most: bait it."),
         team=v["mean"], league=lm, n=v.get("n"), lo=v["lo"], hi=v["hi"], score=sc, unit="points",
@@ -151,11 +156,11 @@ def findings_retakes(r):
     v = r.get("value") or {}
     m = "team.retakes"
     return (_compare("team.retakes.retake", m, "Retakes", v.get("retake"), v.get("league_retake"),
-                     lambda x, a, b, y: f"They retake {x} of plants they face (likely {a}-{b}), league {y}.",
+                     lambda x, a, b, y: f"They retake {x} of plants they face (likely {a}–{b}), league {y}.",
                      "Plant safely: they retake well.", "Get the plant down: they rarely retake.")
             + _compare("team.retakes.plants_faced", m, "Plants against them", v.get("plants_faced"),
                        v.get("league_plants_faced"),
-                       lambda x, a, b, y: f"Attackers plant in {x} of their defence rounds (likely {a}-{b}), league {y}.",
+                       lambda x, a, b, y: f"Attackers plant in {x} of their defence rounds (likely {a}–{b}), league {y}.",
                        "Their site holds break: the plant goes down.", None))
 
 
@@ -163,11 +168,11 @@ def findings_post_plant(r):
     v = r.get("value") or {}
     m = "team.post_plant"
     return (_compare("team.post_plant.win", m, "Post-plant", v.get("post_plant_win"), v.get("league_post_plant_win"),
-                     lambda x, a, b, y: f"They win {x} after planting (likely {a}-{b}), league {y}.",
+                     lambda x, a, b, y: f"They win {x} after planting (likely {a}–{b}), league {y}.",
                      None, "Retake them: their post-plant is weak.")
             + _compare("team.post_plant.pre_plant_losses", m, "Where their attack fails", v.get("pre_plant_losses"),
                        v.get("league_pre_plant_losses"),
-                       lambda x, a, b, y: f"{x} of their attack losses come with no plant (likely {a}-{b}), league {y}.",
+                       lambda x, a, b, y: f"{x} of their attack losses come with no plant (likely {a}–{b}), league {y}.",
                        "Hold the site entrance: their attack fails before the plant.", None))
 
 
@@ -184,16 +189,16 @@ def findings_economy(r):
     v = r.get("value") or {}
     m = "team.economy"
     out = (_compare("team.economy.pistol", m, "Pistols", v.get("pistol"), v.get("league_pistol"),
-                    lambda x, a, b, y: f"They win {x} of pistol rounds (likely {a}-{b}), league {y}.",
+                    lambda x, a, b, y: f"They win {x} of pistol rounds (likely {a}–{b}), league {y}.",
                     "Their pistol rounds are strong: have a plan for the bonus.", None)
            + _compare("team.economy.bonus", m, "Bonus rounds", v.get("bonus"), v.get("league_bonus"),
-                      lambda x, a, b, y: f"After a pistol win they win {x} of bonus rounds (likely {a}-{b}), league {y}.",
+                      lambda x, a, b, y: f"After a pistol win they win {x} of bonus rounds (likely {a}–{b}), league {y}.",
                       None, "Their bonus rounds are weak: force buy after losing the pistol."))
     for b in r.get("breakdown") or []:
         words, hi, lo = ECO_LINES.get(b.get("bucket"), (None, None, None))
         if words:
             out += _compare(f"team.economy.{b['bucket']}", m, "Buy rounds", b.get("rate"), b.get("league"),
-                            lambda x, a, c, y, w=words: f"On {w} they win {x} (likely {a}-{c}), league {y}.", hi, lo)
+                            lambda x, a, c, y, w=words: f"On {w} they win {x} (likely {a}–{c}), league {y}.", hi, lo)
     return out
 
 
@@ -201,15 +206,15 @@ def findings_openings(r):
     v = r.get("value") or {}
     m = "team.openings"
     return (_compare("team.openings.first_blood", m, "First blood", v.get("first_blood"), v.get("league_first_blood"),
-                     lambda x, a, b, y: f"They get first blood in {x} of rounds (likely {a}-{b}), league {y}.",
+                     lambda x, a, b, y: f"They get first blood in {x} of rounds (likely {a}–{b}), league {y}.",
                      "Expect early aggression: they take first contact.", None)
             + _compare("team.openings.after_first_blood", m, "After first blood", v.get("win_after_first_blood"),
                        v.get("league_win_after_first_blood"),
-                       lambda x, a, b, y: f"After getting first blood they win {x} of rounds (likely {a}-{b}), league {y}.",
+                       lambda x, a, b, y: f"After getting first blood they win {x} of rounds (likely {a}–{b}), league {y}.",
                        None, "They don't convert first blood: stay calm after an early loss.")
             + _compare("team.openings.after_first_death", m, "After a first death", v.get("win_after_first_death"),
                        v.get("league_win_after_first_death"),
-                       lambda x, a, b, y: f"After losing the first player they still win {x} of rounds (likely {a}-{b}), league {y}.",
+                       lambda x, a, b, y: f"After losing the first player they still win {x} of rounds (likely {a}–{b}), league {y}.",
                        "They come back from first deaths: don't relax after first blood.", None))
 
 
@@ -217,10 +222,10 @@ def findings_closing(r):
     v = r.get("value") or {}
     m = "team.closing"
     return (_compare("team.closing.comebacks", m, "Comebacks", v.get("comebacks"), v.get("league_comebacks"),
-                     lambda x, a, b, y: f"From a win chance of 20% or lower they come back in {x} (likely {a}-{b}), league {y}.",
+                     lambda x, a, b, y: f"From a win chance of 20% or lower they come back in {x} (likely {a}–{b}), league {y}.",
                      "Close rounds out: they come back.", None)
             + _compare("team.closing.throws", m, "Closing rounds", v.get("throws"), v.get("league_throws"),
-                       lambda x, a, b, y: f"From 80% or higher they lose {x} (likely {a}-{b}), league {y}.",
+                       lambda x, a, b, y: f"From 80% or higher they lose {x} (likely {a}–{b}), league {y}.",
                        "Keep pressure on: they let rounds slip.", None))
 
 

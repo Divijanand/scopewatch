@@ -117,7 +117,7 @@ def test_every_template_avoids_banned_words_and_shows_both_numbers():
         assert not any(w in text for w in ("caused", "always", "exact", "fault")), f["id"]
         assert "likely" in text, f["id"]
         if f["metric"] == "op.wpa":
-            assert "+6.0" in f["headline"] and "+0.5" in f["headline"]
+            assert "+6.0" in f["headline"] and "+0.5" in f["headline"] and "+2.0 to +10.0" in f["headline"]
         elif f["id"] == "util.recon_timing.before":
             assert "70%" in f["headline"] and "half for the league" in f["headline"]
         elif f["id"] == "util.recon_timing.late":

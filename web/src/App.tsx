@@ -79,7 +79,8 @@ export default function App() {
     setLoading(true)
     Promise.all([api.tendencies(q), api.spatial(q)])
       .then(([t, s]) => {
-        setTend(t.data.tendencies); setSummary(t.data.summary ?? []); setSummaryNote(t.data.summary_note ?? null)
+        const { summary, summary_note, ...metrics } = t.data
+        setTend(metrics as Tendencies); setSummary(summary ?? []); setSummaryNote(summary_note ?? null)
         setCoverage(t.coverage ?? null); setWarnings(t.warnings); setSpatial(s.data); setError(null)
       })
       .catch((e) => setError(`Couldn’t load this view: ${e.message}`))

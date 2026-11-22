@@ -1,3 +1,5 @@
+import { Children } from 'react'
+import type { ReactNode } from 'react'
 import type { Rate, Tendencies } from './api'
 import { cap, pct } from './api'
 import type { EvidenceRequest } from './Evidence'
@@ -186,6 +188,12 @@ type Props = {
   onEvidence: (req: EvidenceRequest) => void
 }
 
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  const kids = Children.toArray(children)
+  if (!kids.length) return null
+  return <div className="report-group"><h2>{title}</h2>{kids}</div>
+}
+
 export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, onEvidence, focus, onFocus, sections = 'operator' }: Props) {
   const showReport = sections === 'report'
   const showOperator = sections === 'operator'
@@ -250,113 +258,251 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const duelRows = (duels?.breakdown ?? []).filter((b: any) => b.n > 0).slice(0, 7)
   const agentsBeyond = (duels?.breakdown ?? []).filter((b: any) => b.agent && b.beyond_noise && b.diff > 0).slice(0, 2)
 
-  return (
-    <div className="findings">
-      {showOperator && pred && pred.breakdown.length > 0 && (
-        <section>
-          <h3>How predictable they are</h3>
-          {score != null ? (
-            <p className="claim">
-              More predictable than <b>{score}%</b> of teams on this map{sideWord && <> on {sideWord}</>}.
-              {score >= 70 ? ' Easy to prepare for.' : score <= 30 ? ' Hard to prepare for.' : ''}
-            </p>
-          ) : (
-            <p className="claim">Not enough rounds to compare them with other teams yet.</p>
-          )}
-          <ul className="spots predict">
-            {pred.breakdown.map((b) => (
-              <li key={b.habit}>
-                <button onClick={() => onEvidence({
-                  metric: pred.metric, bucket: b.bucket,
-                  claim: `${b.label}: rounds where they chose ${b.choice}.`,
-                  supportingLabel: `${b.choice} (${b.rate.k})`, contraryLabel: 'Something else',
-                })}>
-                  <span className="where">{b.label}</span>
-                  <span className="detail">
-                    Best guess {b.choice}: right {b.rate.k} of {b.rate.n} ({pct(b.rate)})
-                    {b.league_median != null && `, typical team ${Math.round(b.league_median * 100)}%`}
-                    {b.small_sample && '. Too few rounds to compare'}
-                  </span>
-                  <span className="bar" aria-hidden>
-                    {b.percentile != null && <span className="bar-fill" style={{ width: `${b.percentile}%` }} />}
-                  </span>
-                  <span className="num">{b.percentile ?? '–'}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="hint">
-            For each habit: if an opponent always guessed their most common choice, how often they’d be right. The number on
-            the right is the percentage of other teams on this map and side that are less predictable. Click a habit to open those
-            rounds. Predictable isn’t bad on its own; it’s what an opponent can prepare for.
-          </p>
-        </section>
-      )}
-      {showReport && side === 'attacker' && <section><h3>Attack</h3></section>}
-      {showReport && recon && rv?.n >= (rv.min_league ?? 20) && rv.first_recon && (
-        <section>
-          <h3>Recon timing</h3>
+  const predCard = pred && pred.breakdown.length > 0 && (
+      <section>
+        <h3>How predictable they are</h3>
+        {score != null ? (
           <p className="claim">
-            Their first recon goes out at about <b>{rv.first_recon.median} s</b>
-            {rv.vs_league != null && Math.abs(rv.vs_league) >= 1
-              ? <> ({Math.abs(rv.vs_league)} s {rv.vs_league < 0 ? 'earlier' : 'later'} than the league’s {rv.league_first_recon.median} s)</>
-              : rv.league_first_recon && <> (league {rv.league_first_recon.median} s)</>}
-            {side === 'attacker' && rv.recon_to_plant && <>, and they plant about <b>{rv.recon_to_plant.median} s</b> later</>}.
+            More predictable than <b>{score}%</b> of teams on this map{sideWord && <> on {sideWord}</>}.
+            {score >= 70 ? ' Easy to prepare for.' : score <= 30 ? ' Hard to prepare for.' : ''}
           </p>
-          <span className={rv.n < 40 ? 'evidence thin' : 'evidence'}>
-            {rv.n} rounds; middle half of first recons {rv.first_recon.q1}–{rv.first_recon.q3} s; no recon in {pct(rv.no_recon)} of rounds.
-            {side === 'attacker' && rv.recon_to_contact && <> First fight {rv.recon_to_contact.median} s after the recon.</>}
-          </span>
-          {rv.late?.n > 0 && rv.on_time?.n > 0 && (
-            <p className="aside">
-              When their first recon comes late (after {rv.split_at} s, the league’s slowest quarter) or not at all, they win{' '}
-              <b>{pct(rv.late)}</b> of rounds (likely {Math.round(rv.late.lo * 100)}–{Math.round(rv.late.hi * 100)}%), against{' '}
-              {pct(rv.on_time)} on time (likely {Math.round(rv.on_time.lo * 100)}–{Math.round(rv.on_time.hi * 100)}%).
-              {' '}Late recon is sometimes a slow default, not a denial; the feed doesn’t record a dart being destroyed.
-            </p>
-          )}
-          {rv.first_recon_agent?.length > 0 && (
-            <p className="hint">First recon usually from {list(rv.first_recon_agent.slice(0, 2).map((a: any) => `${cap(a.agent)} (${a.n})`))}.</p>
-          )}
-          <ShowRounds n={recon.evidence_counts.supporting + recon.evidence_counts.contrary} onClick={() => onEvidence({
-            metric: recon.metric, claim: 'Rounds where their first recon came late or not at all.',
-            supportingLabel: `Lost (${recon.evidence_counts.supporting})`,
-            contraryLabel: `Won (${recon.evidence_counts.contrary})`,
-          })} />
-        </section>
-      )}
-      {showReport && duels?.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
-      {showReport && duels && dv?.total >= 20 && dv.diff != null && (
-        <section>
-          <h3>Dry duels</h3>
-          <p className="claim">
-            With no utility around, they win {Math.abs(dv.diff) < 0.01
-              ? <>about as many fights as the opener advantage predicts</>
-              : <><b>{Math.abs(dv.diff * 100).toFixed(1)} points</b> {dv.diff > 0 ? 'more' : 'fewer'} fights than the opener advantage predicts</>}
-            {dv.diff > 0 && agentsBeyond.length > 0 && <>, most clearly on {list(agentsBeyond.map((a: any) => cap(a.agent)))}</>}.
+        ) : (
+          <p className="claim">Not enough rounds to compare them with other teams yet.</p>
+        )}
+        <ul className="spots predict">
+          {pred.breakdown.map((b) => (
+            <li key={b.habit}>
+              <button onClick={() => onEvidence({
+                metric: pred.metric, bucket: b.bucket,
+                claim: `${b.label}: rounds where they chose ${b.choice}.`,
+                supportingLabel: `${b.choice} (${b.rate.k})`, contraryLabel: 'Something else',
+              })}>
+                <span className="where">{b.label}</span>
+                <span className="detail">
+                  Best guess {b.choice}: right {b.rate.k} of {b.rate.n} ({pct(b.rate)})
+                  {b.league_median != null && `, typical team ${Math.round(b.league_median * 100)}%`}
+                  {b.small_sample && '. Too few rounds to compare'}
+                </span>
+                <span className="bar" aria-hidden>
+                  {b.percentile != null && <span className="bar-fill" style={{ width: `${b.percentile}%` }} />}
+                </span>
+                <span className="num">{b.percentile ?? '–'}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="hint">
+          For each habit: if an opponent always guessed their most common choice, how often they’d be right. The number on
+          the right is the percentage of other teams on this map and side that are less predictable. Click a habit to open those
+          rounds. Predictable isn’t bad on its own; it’s what an opponent can prepare for.
+        </p>
+      </section>
+    )
+  const reconCard = recon && rv?.n >= (rv.min_league ?? 20) && rv.first_recon && (
+      <section>
+        <h3>Recon timing</h3>
+        <p className="claim">
+          Their first recon goes out at about <b>{rv.first_recon.median} s</b>
+          {rv.vs_league != null && Math.abs(rv.vs_league) >= 1
+            ? <> ({Math.abs(rv.vs_league)} s {rv.vs_league < 0 ? 'earlier' : 'later'} than the league’s {rv.league_first_recon.median} s)</>
+            : rv.league_first_recon && <> (league {rv.league_first_recon.median} s)</>}
+          {side === 'attacker' && rv.recon_to_plant && <>, and they plant about <b>{rv.recon_to_plant.median} s</b> later</>}.
+        </p>
+        <span className={rv.n < 40 ? 'evidence thin' : 'evidence'}>
+          {rv.n} rounds; middle half of first recons {rv.first_recon.q1}–{rv.first_recon.q3} s; no recon in {pct(rv.no_recon)} of rounds.
+          {side === 'attacker' && rv.recon_to_contact && <> First fight {rv.recon_to_contact.median} s after the recon.</>}
+        </span>
+        {rv.late?.n > 0 && rv.on_time?.n > 0 && (
+          <p className="aside">
+            When their first recon comes late (after {rv.split_at} s, the league’s slowest quarter) or not at all, they win{' '}
+            <b>{pct(rv.late)}</b> of rounds (likely {Math.round(rv.late.lo * 100)}–{Math.round(rv.late.hi * 100)}%), against{' '}
+            {pct(rv.on_time)} on time (likely {Math.round(rv.on_time.lo * 100)}–{Math.round(rv.on_time.hi * 100)}%).
+            {' '}Late recon is sometimes a slow default, not a denial; the feed doesn’t record a dart being destroyed.
           </p>
-          <span className={dv.total < 100 ? 'evidence thin' : 'evidence'}>
-            {dv.total} dry fights; likely between {dpts(dv.lo)} and {dpts(dv.hi)} points.
-            {' '}{dv.beyond_noise ? 'The range excludes 0.' : 'The range includes 0, so this is a hint, not a real difference yet.'}
-          </span>
+        )}
+        {rv.first_recon_agent?.length > 0 && (
+          <p className="hint">First recon usually from {list(rv.first_recon_agent.slice(0, 2).map((a: any) => `${cap(a.agent)} (${a.n})`))}.</p>
+        )}
+        <ShowRounds n={recon.evidence_counts.supporting + recon.evidence_counts.contrary} onClick={() => onEvidence({
+          metric: recon.metric, claim: 'Rounds where their first recon came late or not at all.',
+          supportingLabel: `Lost (${recon.evidence_counts.supporting})`,
+          contraryLabel: `Won (${recon.evidence_counts.contrary})`,
+        })} />
+      </section>
+    )
+  const duelWarn = duels?.warnings.map((w) => <p key={w} className="hint">{w}</p>)
+  const duelsCard = duels && dv?.total >= 20 && dv.diff != null && (
+      <section>
+        <h3>Dry duels</h3>
+        <p className="claim">
+          With no utility around, they win {Math.abs(dv.diff) < 0.01
+            ? <>about as many fights as the opener advantage predicts</>
+            : <><b>{Math.abs(dv.diff * 100).toFixed(1)} points</b> {dv.diff > 0 ? 'more' : 'fewer'} fights than the opener advantage predicts</>}
+          {dv.diff > 0 && agentsBeyond.length > 0 && <>, most clearly on {list(agentsBeyond.map((a: any) => cap(a.agent)))}</>}.
+        </p>
+        <span className={dv.total < 100 ? 'evidence thin' : 'evidence'}>
+          {dv.total} dry fights; likely between {dpts(dv.lo)} and {dpts(dv.hi)} points.
+          {' '}{dv.beyond_noise ? 'The range excludes 0.' : 'The range includes 0, so this is a hint, not a real difference yet.'}
+        </span>
+        <ul className="carriers">
+          {duelRows.map((b: any) => (
+            <li key={b.bucket + (b.agent ?? '')}>
+              <span className="wpa-row">
+                <span className="who">{b.agent ? cap(b.agent) : b.label}</span>
+                <span className="agents">{b.n} fights, won {Math.round(b.actual * 100)}% against {Math.round(b.expected * 100)}% expected</span>
+                <span className="num">{dpts(b.diff)}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="hint">
+          The player who shoots first wins most fights, so each fight is compared with the league’s rate for the same
+          map, side, players alive and plant. Dry = no flash, smoke, recon, ult or ability damage near the fight in the
+          4 s before, from either team.
+        </p>
+      </section>
+    )
+  const retakesCard = rv5(retakes) && side === 'defender' && (
+      <section>
+        <h3>Retakes</h3>
+        <p className="claim">
+          They retake <b>{pct(retakes.value.retake)}</b> of the plants they face
+          {retakes.value.league_retake && <> (league {pct(retakes.value.league_retake)})</>}
+          {behindRetake && behindRetake.rate.n >= 10 && <>; down a player at the plant it’s <b>{pct(behindRetake.rate)}</b></>}.
+        </p>
+        <Evidence r={retakes.value.retake} unit="plants faced" />
+        <RateRows rows={retakes.breakdown.map((b: any) => ({ label: AT_PLANT_DEF[b.bucket], r: b.rate, league: b.league }))} />
+        {retakes.value.plants_faced && (
+          <p className="aside">Attackers get the spike down in {pct(retakes.value.plants_faced)} of their defence rounds
+            {retakes.value.league_plants_faced && <> (league {pct(retakes.value.league_plants_faced)})</>}.</p>
+        )}
+        <ShowRounds n={retakes.evidence_counts.supporting + retakes.evidence_counts.contrary} onClick={() => onEvidence({
+          metric: retakes.metric, claim: 'Plants they faced: retakes lost and won.',
+          supportingLabel: `Lost (${retakes.evidence_counts.supporting})`, contraryLabel: `Retaken (${retakes.evidence_counts.contrary})`,
+        })} />
+      </section>
+    )
+  const postPlantCard = rv5(postPlant) && side === 'attacker' && ppl && (
+      <section>
+        <h3>Attack: before and after the plant</h3>
+        <p className="claim">
+          {prePlantRead}: <b>{pct(ppl)}</b> of their attack losses come with no plant
+          {lppl && <> (league {pct(lppl)})</>}.
+        </p>
+        <span className="evidence">
+          They plant in {pct(postPlant.value.plant_share)} of attack rounds
+          {postPlant.value.league_plant_share && <> (league {pct(postPlant.value.league_plant_share)})</>} and win
+          {' '}{pct(postPlant.value.post_plant_win)} after planting
+          {postPlant.value.league_post_plant_win && <> (league {pct(postPlant.value.league_post_plant_win)})</>}.
+        </span>
+        <RateRows rows={postPlant.breakdown.map((b: any) => ({ label: AT_PLANT_ATT[b.bucket], r: b.rate, league: b.league }))} />
+        <ShowRounds n={postPlant.evidence_counts.supporting + postPlant.evidence_counts.contrary} onClick={() => onEvidence({
+          metric: postPlant.metric, claim: 'Attack rounds they lost, before and after the plant.',
+          supportingLabel: `No plant (${postPlant.evidence_counts.supporting})`, contraryLabel: `After the plant (${postPlant.evidence_counts.contrary})`,
+        })} />
+      </section>
+    )
+  const econCard = rv5(econ) && econ.value.pistol && (
+      <section>
+        <h3>Pistols and buys</h3>
+        <p className="claim">
+          They win <b>{pct(econ.value.pistol)}</b> of pistol rounds{econ.value.league_pistol && <> (league {pct(econ.value.league_pistol)})</>}
+          {econ.value.bonus?.n > 0 && <> and <b>{pct(econ.value.bonus)}</b> of the bonus rounds after a pistol win
+            {econ.value.league_bonus && <> (league {pct(econ.value.league_bonus)})</>}</>}.
+        </p>
+        <Evidence r={econ.value.pistol} unit="pistol rounds" />
+        <RateRows rows={econ.breakdown.map((b: any) => ({ label: ECO_LABEL[b.bucket] ?? b.label, r: b.rate, league: b.league }))} />
+      </section>
+    )
+  const openingsCard = rv5(openings) && openings.value.first_blood && (
+      <section>
+        <h3>Openings</h3>
+        <p className="claim">
+          They get first blood in <b>{pct(openings.value.first_blood)}</b> of rounds
+          {openings.value.league_first_blood && <> (league {pct(openings.value.league_first_blood)})</>}, and win
+          {' '}<b>{pct(openings.value.win_after_first_blood)}</b> after it
+          {openings.value.league_win_after_first_blood && <> (league {pct(openings.value.league_win_after_first_blood)})</>}.
+        </p>
+        <span className="evidence">
+          After giving up first blood they win {pct(openings.value.win_after_first_death)}
+          {openings.value.league_win_after_first_death && <> (league {pct(openings.value.league_win_after_first_death)})</>}; {openings.value.n} rounds.
+        </span>
+        {openingPlayers.length > 0 && (
           <ul className="carriers">
-            {duelRows.map((b: any) => (
-              <li key={b.bucket + (b.agent ?? '')}>
+            {openingPlayers.map((b: any) => (
+              <li key={b.player_id}>
                 <span className="wpa-row">
-                  <span className="who">{b.agent ? cap(b.agent) : b.label}</span>
-                  <span className="agents">{b.n} fights, won {Math.round(b.actual * 100)}% against {Math.round(b.expected * 100)}% expected</span>
-                  <span className="num">{dpts(b.diff)}</span>
+                  <span className="who">{b.player_name}</span>
+                  <span className="agents">{b.first_kills} first kills, {b.first_deaths} first deaths ({b.first_deaths_in_losses} in rounds lost)</span>
+                  <span className="num">{b.first_kills - b.first_deaths > 0 ? '+' : ''}{b.first_kills - b.first_deaths}</span>
                 </span>
               </li>
             ))}
           </ul>
+        )}
+        <p className="hint">First blood is the round’s first kill; a trade is the second. Opening deaths show where openings go wrong, not who’s to blame: entry players die first by design.</p>
+        <ShowRounds n={openings.evidence_counts.supporting + openings.evidence_counts.contrary} onClick={() => onEvidence({
+          metric: openings.metric, claim: 'Rounds lost after giving up first blood, and rounds won after getting it.',
+          supportingLabel: `Lost after first death (${openings.evidence_counts.supporting})`, contraryLabel: `Won after first blood (${openings.evidence_counts.contrary})`,
+        })} />
+      </section>
+    )
+  const closingCard = rv5(closing) && closing.value.comebacks && closing.value.throws && (
+      <section>
+        <h3>Comebacks and throws</h3>
+        <p className="claim">
+          From a win chance of 20% or lower they came back in <b>{pct(closing.value.comebacks)}</b> of rounds
+          {closing.value.league_comebacks && <> (league {pct(closing.value.league_comebacks)})</>}; from 80% or higher they
+          lost <b>{pct(closing.value.throws)}</b>{closing.value.league_throws && <> (league {pct(closing.value.league_throws)})</>}.
+        </p>
+        <span className="evidence">
+          {closing.value.comebacks.n} rounds reached 20% or lower; {closing.value.throws.n} reached 80% or higher.
+        </span>
+        <p className="hint">Win chance comes from our round win-probability model after every kill and plant.</p>
+        <ShowRounds n={closing.evidence_counts.supporting + closing.evidence_counts.contrary} onClick={() => onEvidence({
+          metric: closing.metric, claim: 'Rounds they lost from 80% or higher, and won from 20% or lower.',
+          supportingLabel: `Lost from 80%+ (${closing.evidence_counts.supporting})`, contraryLabel: `Won from 20% or lower (${closing.evidence_counts.contrary})`,
+        })} />
+      </section>
+    )
+  const closingWarn = closing?.warnings?.map((w: string) => <p key={w} className="hint">{w}</p>)
+  const exeCard = exe && side === 'attacker' && exe.breakdown.length > 0 && (
+      <section>
+        <h3>How they hit sites</h3>
+        <p className="claim">
+          They plant on <b>{exe.breakdown[0].site}</b> most: <b>{exe.breakdown[0].rate.k} of {exe.breakdown[0].rate.n}</b> attack
+          rounds{exe.breakdown[0].entry_t != null && <>, with the first fight there at about {Math.round(exe.breakdown[0].entry_t)}s</>}.
+        </p>
+        <Evidence r={exe.breakdown[0].rate} unit="attack rounds" />
+        <ol className="sites">
+          {exe.breakdown.map((b) => (
+            <SiteBlock key={b.site} b={b} n={exe.breakdown[0].rate.n}
+                       onOpen={() => onEvidence({
+                         metric: exe.metric, bucket: b.bucket, claim: `Attack rounds where they planted on ${b.site}.`,
+                         supportingLabel: `${b.site} plants (${b.rate.k})`, contraryLabel: 'Other sites',
+                       })} />
+          ))}
+        </ol>
+        {exe.value.no_plant?.n > 0 && (
           <p className="hint">
-            The player who shoots first wins most fights, so each fight is compared with the league’s rate for the same
-            map, side, players alive and plant. Dry = no flash, smoke, recon, ult or ability damage near the fight in the
-            4 s before, from either team.
+            Pace is by plant time: fast before 35 s, default 35–70 s, late after 70 s.
+            No plant in {frac(exe.value.no_plant)} attack rounds (won {frac(exe.value.no_plant_won)}). The feed records where
+            utility was thrown from, not where it landed: open the rounds and watch the VOD to see the actual execute.
           </p>
-        </section>
-      )}
+        )}
+      </section>
+    )
+
+  return (
+    <div className="findings">
+      {showReport && <>
+        <Group title="Habits">{predCard}</Group>
+        {side !== 'defender' && <Group title="Attack">{exeCard}{postPlantCard}{side === 'attacker' && reconCard}</Group>}
+        {side !== 'attacker' && <Group title="Defence">{retakesCard}{side === 'defender' && reconCard}</Group>}
+        <Group title="Economy">{econCard}</Group>
+        <Group title="Openings and duels">{openingsCard}{duelWarn}{duelsCard}</Group>
+        <Group title="Closing rounds">{closingCard}{closingWarn}</Group>
+      </>}
       {showOperator && wv && wv.n > 0 && (
         <section>
           <h3>What the Operator is worth</h3>
@@ -401,140 +547,6 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
         </section>
       )}
       {showOperator && wpa?.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
-      {showReport && side === 'defender' && <section><h3>Defence</h3></section>}
-      {showReport && rv5(retakes) && side === 'defender' && (
-        <section>
-          <h3>Retakes</h3>
-          <p className="claim">
-            They retake <b>{pct(retakes.value.retake)}</b> of the plants they face
-            {retakes.value.league_retake && <> (league {pct(retakes.value.league_retake)})</>}
-            {behindRetake && behindRetake.rate.n >= 10 && <>; down a player at the plant it’s <b>{pct(behindRetake.rate)}</b></>}.
-          </p>
-          <Evidence r={retakes.value.retake} unit="plants faced" />
-          <RateRows rows={retakes.breakdown.map((b: any) => ({ label: AT_PLANT_DEF[b.bucket], r: b.rate, league: b.league }))} />
-          {retakes.value.plants_faced && (
-            <p className="aside">Attackers get the spike down in {pct(retakes.value.plants_faced)} of their defence rounds
-              {retakes.value.league_plants_faced && <> (league {pct(retakes.value.league_plants_faced)})</>}.</p>
-          )}
-          <ShowRounds n={retakes.evidence_counts.supporting + retakes.evidence_counts.contrary} onClick={() => onEvidence({
-            metric: retakes.metric, claim: 'Plants they faced: retakes lost and won.',
-            supportingLabel: `Lost (${retakes.evidence_counts.supporting})`, contraryLabel: `Retaken (${retakes.evidence_counts.contrary})`,
-          })} />
-        </section>
-      )}
-      {showReport && rv5(postPlant) && side === 'attacker' && ppl && (
-        <section>
-          <h3>Attack: before and after the plant</h3>
-          <p className="claim">
-            {prePlantRead}: <b>{pct(ppl)}</b> of their attack losses come with no plant
-            {lppl && <> (league {pct(lppl)})</>}.
-          </p>
-          <span className="evidence">
-            They plant in {pct(postPlant.value.plant_share)} of attack rounds
-            {postPlant.value.league_plant_share && <> (league {pct(postPlant.value.league_plant_share)})</>} and win
-            {' '}{pct(postPlant.value.post_plant_win)} after planting
-            {postPlant.value.league_post_plant_win && <> (league {pct(postPlant.value.league_post_plant_win)})</>}.
-          </span>
-          <RateRows rows={postPlant.breakdown.map((b: any) => ({ label: AT_PLANT_ATT[b.bucket], r: b.rate, league: b.league }))} />
-          <ShowRounds n={postPlant.evidence_counts.supporting + postPlant.evidence_counts.contrary} onClick={() => onEvidence({
-            metric: postPlant.metric, claim: 'Attack rounds they lost, before and after the plant.',
-            supportingLabel: `No plant (${postPlant.evidence_counts.supporting})`, contraryLabel: `After the plant (${postPlant.evidence_counts.contrary})`,
-          })} />
-        </section>
-      )}
-      {showReport && <section><h3>Economy</h3></section>}
-      {showReport && rv5(econ) && econ.value.pistol && (
-        <section>
-          <h3>Economy</h3>
-          <p className="claim">
-            They win <b>{pct(econ.value.pistol)}</b> of pistol rounds{econ.value.league_pistol && <> (league {pct(econ.value.league_pistol)})</>}
-            {econ.value.bonus?.n > 0 && <> and <b>{pct(econ.value.bonus)}</b> of the bonus rounds after a pistol win
-              {econ.value.league_bonus && <> (league {pct(econ.value.league_bonus)})</>}</>}.
-          </p>
-          <Evidence r={econ.value.pistol} unit="pistol rounds" />
-          <RateRows rows={econ.breakdown.map((b: any) => ({ label: ECO_LABEL[b.bucket] ?? b.label, r: b.rate, league: b.league }))} />
-        </section>
-      )}
-      {showReport && <section><h3>Openings and duels</h3></section>}
-      {showReport && rv5(openings) && openings.value.first_blood && (
-        <section>
-          <h3>Openings</h3>
-          <p className="claim">
-            They get first blood in <b>{pct(openings.value.first_blood)}</b> of rounds
-            {openings.value.league_first_blood && <> (league {pct(openings.value.league_first_blood)})</>}, and win
-            {' '}<b>{pct(openings.value.win_after_first_blood)}</b> after it
-            {openings.value.league_win_after_first_blood && <> (league {pct(openings.value.league_win_after_first_blood)})</>}.
-          </p>
-          <span className="evidence">
-            After giving up first blood they win {pct(openings.value.win_after_first_death)}
-            {openings.value.league_win_after_first_death && <> (league {pct(openings.value.league_win_after_first_death)})</>}; {openings.value.n} rounds.
-          </span>
-          {openingPlayers.length > 0 && (
-            <ul className="carriers">
-              {openingPlayers.map((b: any) => (
-                <li key={b.player_id}>
-                  <span className="wpa-row">
-                    <span className="who">{b.player_name}</span>
-                    <span className="agents">{b.first_kills} first kills, {b.first_deaths} first deaths ({b.first_deaths_in_losses} in rounds lost)</span>
-                    <span className="num">{b.first_kills - b.first_deaths > 0 ? '+' : ''}{b.first_kills - b.first_deaths}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="hint">First blood is the round’s first kill; a trade is the second. Opening deaths show where openings go wrong, not who’s to blame: entry players die first by design.</p>
-          <ShowRounds n={openings.evidence_counts.supporting + openings.evidence_counts.contrary} onClick={() => onEvidence({
-            metric: openings.metric, claim: 'Rounds lost after giving up first blood, and rounds won after getting it.',
-            supportingLabel: `Lost after first death (${openings.evidence_counts.supporting})`, contraryLabel: `Won after first blood (${openings.evidence_counts.contrary})`,
-          })} />
-        </section>
-      )}
-      {showReport && <section><h3>Closing rounds</h3></section>}
-      {showReport && rv5(closing) && closing.value.comebacks && closing.value.throws && (
-        <section>
-          <h3>Closing rounds</h3>
-          <p className="claim">
-            From a win chance of 20% or lower they came back in <b>{pct(closing.value.comebacks)}</b> of rounds
-            {closing.value.league_comebacks && <> (league {pct(closing.value.league_comebacks)})</>}; from 80% or higher they
-            lost <b>{pct(closing.value.throws)}</b>{closing.value.league_throws && <> (league {pct(closing.value.league_throws)})</>}.
-          </p>
-          <span className="evidence">
-            {closing.value.comebacks.n} rounds reached 20% or lower; {closing.value.throws.n} reached 80% or higher.
-          </span>
-          <p className="hint">Win chance comes from our round win-probability model after every kill and plant.</p>
-          <ShowRounds n={closing.evidence_counts.supporting + closing.evidence_counts.contrary} onClick={() => onEvidence({
-            metric: closing.metric, claim: 'Rounds they lost from 80% or higher, and won from 20% or lower.',
-            supportingLabel: `Lost from 80%+ (${closing.evidence_counts.supporting})`, contraryLabel: `Won from 20% or lower (${closing.evidence_counts.contrary})`,
-          })} />
-        </section>
-      )}
-      {showReport && closing?.warnings?.map((w: string) => <p key={w} className="hint">{w}</p>)}
-      {showReport && exe && side === 'attacker' && exe.breakdown.length > 0 && (
-        <section>
-          <h3>How they hit sites</h3>
-          <p className="claim">
-            They plant on <b>{exe.breakdown[0].site}</b> most: <b>{exe.breakdown[0].rate.k} of {exe.breakdown[0].rate.n}</b> attack
-            rounds{exe.breakdown[0].entry_t != null && <>, with the first fight there at about {Math.round(exe.breakdown[0].entry_t)}s</>}.
-          </p>
-          <Evidence r={exe.breakdown[0].rate} unit="attack rounds" />
-          <ol className="sites">
-            {exe.breakdown.map((b) => (
-              <SiteBlock key={b.site} b={b} n={exe.breakdown[0].rate.n}
-                         onOpen={() => onEvidence({
-                           metric: exe.metric, bucket: b.bucket, claim: `Attack rounds where they planted on ${b.site}.`,
-                           supportingLabel: `${b.site} plants (${b.rate.k})`, contraryLabel: 'Other sites',
-                         })} />
-            ))}
-          </ol>
-          {exe.value.no_plant?.n > 0 && (
-            <p className="hint">
-              Pace is by plant time: fast before 35 s, default 35–70 s, late after 70 s.
-              No plant in {frac(exe.value.no_plant)} attack rounds (won {frac(exe.value.no_plant_won)}). The feed records where
-              utility was thrown from, not where it landed: open the rounds and watch the VOD to see the actual execute.
-            </p>
-          )}
-        </section>
-      )}
       {showOperator && gamble?.rate && gamble.rate.n > 0 && (
         <section>
           <h3>What the Operator buys them</h3>

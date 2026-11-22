@@ -143,7 +143,7 @@ button, select, input { font: inherit; color: inherit; }
   .app { padding: 0 16px 32px; }
   .board { grid-template-columns: 1fr; }
   .map { position: static; }
-  .team-pick select { min-width: 0; max-width: 60vw; }
+  .team-pick select { min-width: 0; max-width: min(60vw, calc(100vw - 190px)); }   /* leaves room for the brand at 375 px */
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
@@ -307,8 +307,7 @@ button, select, input { font: inherit; color: inherit; }
 .summary-headline { margin: 0; font-size: 1rem; color: var(--ink); }
 .summary-prepare { margin: 0; color: var(--ink-2); }
 .summary-note { margin: 0 0 22px; color: var(--ink-2); }
+.summary li > button { justify-self: start; padding: 4px 12px; font-size: .85rem; }
 
-@media (max-width: 375px) {
-  .summary { overflow-x: hidden; }
-  .summary .bar { width: 100%; }
-}
+.report-group { display: contents; }
+.report-group > h2 { margin: 18px 0 0; font-size: 1.05rem; color: var(--ink-2); }

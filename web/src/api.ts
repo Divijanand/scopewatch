@@ -73,11 +73,8 @@ export type Finding = {
   evidence: { metric: string; label: string }
 }
 
-export type TendenciesResponse = {
-  tendencies: Tendencies
-  summary: Finding[]
-  summary_note: string | null
-}
+// The API returns the metric results keyed by id, with `summary` and `summary_note` alongside them
+export type TendenciesResponse = Record<string, unknown> & { summary?: Finding[]; summary_note?: string | null }
 
 export type Engagement = {
   round_key: string; event_id: string; kind: 'kill' | 'damage'; weapon: string; t_round: number
