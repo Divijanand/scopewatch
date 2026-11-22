@@ -29,6 +29,7 @@ from engine.coverage import coverage
 from engine.metrics import REGISTRY, Filters
 from engine.metrics.operator import ENG_COLS, _op_engagements, spawns as _spawns
 from engine.metrics.utility import agent_kit, layer_items
+from engine import matchup
 from engine import report
 
 app = FastAPI(title="Scopewatch", version="2",
@@ -139,6 +140,42 @@ def _tendencies(team_id, map, side, since, until, player_id):
     results["summary_note"] = note
     cov = coverage(con(), f)
     return envelope(results, f, warnings=warns + cov["warnings"], definitions=defs, cov=cov)
+
+
+@lru_cache(maxsize=128)
+def _matchup(team_a, team_b, map, since, until):
+    if team_a == team_b:
+        raise HTTPException(422, "team_a and team_b must differ")
+
+    filters(team_a, map, None, since, until)
+    filters(team_b, map, None, since, until)
+
+    a_name_row = con().execute("SELECT name FROM teams WHERE team_id = ?", [team_a]).fetchone()
+    b_name_row = con().execute("SELECT name FROM teams WHERE team_id = ?", [team_b]).fetchone()
+    a_name = a_name_row[0] if a_name_row else team_a
+    b_name = b_name_row[0] if b_name_row else team_b
+
+    a_att = _tendencies(team_a, map, "attacker", since, until, None)["data"]
+    a_def = _tendencies(team_a, map, "defender", since, until, None)["data"]
+    b_att = _tendencies(team_b, map, "attacker", since, until, None)["data"]
+    b_def = _tendencies(team_b, map, "defender", since, until, None)["data"]
+
+    h2h = matchup.head_to_head(con(), team_a, team_b, since=since, until=until, limit=10)
+    return dict(
+        team_a=dict(id=team_a, name=a_name),
+        team_b=dict(id=team_b, name=b_name),
+        map=map,
+        pairs=matchup.facing_pairs(team_a, a_name, team_b, b_name, a_att, a_def, b_att, b_def),
+        top=dict(a=matchup.top_lines(a_att, a_def), b=matchup.top_lines(b_att, b_def)),
+        head_to_head=h2h,
+        note="They haven't met in this data." if not h2h else None,
+    )
+
+
+@app.get("/api/matchup")
+def api_matchup(team_a: str, team_b: str, map: str,
+                since: str | None = DATE, until: str | None = DATE):
+    return envelope(_matchup(team_a, team_b, map, since, until))
 
 
 @app.get("/api/spatial/operator")
