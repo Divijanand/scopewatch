@@ -230,6 +230,12 @@ export default function App() {
         </main>
       )}
 
+      <p className="legal">
+        Match data © GRID eSports GmbH and Riot Games, Inc., used under the hackathon data license.
+        Scopewatch was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games.
+        Riot Games does not endorse or sponsor this project.
+      </p>
+
       {evidence && q && <EvidenceDrawer req={evidence} q={q} onClose={closeEvidence} />}
     </div>
   )
