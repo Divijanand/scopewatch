@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, cap } from './api'
-import type { Catalog, Coverage, Finding, Query, Spatial, Team, TeamMap, Tendencies, UtilityGroup, UtilityLayer } from './api'
+import type { Catalog, Coverage, Finding, Matchup, Query, Spatial, Team, TeamMap, Tendencies, UtilityGroup, UtilityLayer } from './api'
 import { GROUP_LABEL, UtilityFindings, UtilityMap } from './Utility'
 import type { UtilFocus } from './Utility'
 import { MapView } from './MapView'
@@ -9,6 +9,7 @@ import type { Bucket, Focus } from './Findings'
 import { EvidenceDrawer } from './Evidence'
 import type { EvidenceRequest } from './Evidence'
 import { Summary } from './Summary'
+import { Matchup as MatchupView } from './Matchup'
 
 type Side = 'attacker' | 'defender' | null
 
@@ -36,12 +37,14 @@ export default function App() {
   const [buckets, setBuckets] = useState<Set<Bucket>>(new Set())
   const [showDamage, setShowDamage] = useState(true)
   const [focus, setFocus] = useState<Focus | null>(null)
-  const [view, setView] = useState<'report' | 'operator' | 'utility'>('report')
+  const [view, setView] = useState<'report' | 'operator' | 'utility' | 'matchup'>('report')
+  const [opponent, setOpponent] = useState('')
   const [group, setGroup] = useState<UtilityGroup>('setup')
   const [util, setUtil] = useState<UtilityLayer | null>(null)
   const [utilFocus, setUtilFocus] = useState<UtilFocus | null>(null)
   const [utilAgent, setUtilAgent] = useState<string | null>(null)
   const [agentList, setAgentList] = useState<{ agent: string; rounds: number }[]>([])
+  const [matchup, setMatchup] = useState<Matchup | null>(null)
   const [tend, setTend] = useState<Tendencies | null>(null)
   const [summary, setSummary] = useState<Finding[]>([])
   const [summaryNote, setSummaryNote] = useState<string | null>(null)
@@ -68,12 +71,20 @@ export default function App() {
     })
   }, [teamId, catalog])
 
+  useEffect(() => {
+    if (!catalog || !teamId) return
+    const options = catalog.teams.filter((t) => t.team_id !== teamId)
+    const first = options[0]?.team_id ?? ''
+    setOpponent((cur) => (cur && cur !== teamId && options.some((t) => t.team_id === cur) ? cur : first))
+  }, [catalog, teamId])
+
   const q: Query | null = useMemo(
     () => (teamId && map ? { team_id: teamId, map, side: side ?? undefined, player_id: player ?? undefined } : null),
     [teamId, map, side, player],
   )
 
   useEffect(() => {
+    if (view === 'matchup') return
     if (!q) return
     setFocus(null)
     setLoading(true)
@@ -85,7 +96,17 @@ export default function App() {
       })
       .catch((e) => setError(`Couldn’t load this view: ${e.message}`))
       .finally(() => setLoading(false))
-  }, [q])
+  }, [q, view])
+
+  useEffect(() => {
+    if (view !== 'matchup') return
+    if (!teamId || !opponent || !map || opponent === teamId) { setMatchup(null); return }
+    setLoading(true)
+    api.matchup({ team_a: teamId, team_b: opponent, map })
+      .then((r) => { setMatchup(r.data); setError(null) })
+      .catch((e) => setError(`Couldn’t load matchup: ${e.message}`))
+      .finally(() => setLoading(false))
+  }, [view, teamId, opponent, map])
 
   useEffect(() => {
     if (!q || view !== 'utility') return
@@ -124,6 +145,7 @@ export default function App() {
     for (const k of ['VCT', 'Game Changers']) g[k].sort((a, b) => a.name.localeCompare(b.name))
     return g
   }, [catalog])
+  const opponents = useMemo(() => (catalog?.teams ?? []).filter((t) => t.team_id !== teamId), [catalog, teamId])
 
   const playerName = tend?.['op.holder_share'].breakdown.find((c) => c.player_id === player)?.name
 
@@ -157,7 +179,7 @@ export default function App() {
             <h1>{team.name}</h1>
             <p className="sub">
               Scouting report{map && <> for {cap(map)}</>}
-              {side && <>, {side === 'attacker' ? 'attack' : 'defense'}</>}
+              {view !== 'matchup' && side && <>, {side === 'attacker' ? 'attack' : 'defense'}</>}
               {playerName && <>, {playerName} only</>}.
             </p>
             {coverage && <CoverageStrip c={coverage} warnings={warnings} />}
@@ -171,11 +193,21 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div className="seg" role="group" aria-label="Side">
-              {([['defender', 'Defense'], ['attacker', 'Attack'], [null, 'Both']] as const).map(([v, l]) => (
-                <button key={l} aria-pressed={side === v} onClick={() => setSide(v)}>{l}</button>
-              ))}
-            </div>
+            {view !== 'matchup' && (
+              <div className="seg" role="group" aria-label="Side">
+                {([['defender', 'Defense'], ['attacker', 'Attack'], [null, 'Both']] as const).map(([v, l]) => (
+                  <button key={l} aria-pressed={side === v} onClick={() => setSide(v)}>{l}</button>
+                ))}
+              </div>
+            )}
+            {view === 'matchup' && (
+              <label className="team-pick">
+                <span>against</span>
+                <select value={opponent} onChange={(e) => setOpponent(e.target.value)}>
+                  {opponents.map((t) => <option key={t.team_id} value={t.team_id}>{t.name}</option>)}
+                </select>
+              </label>
+            )}
             <label className="check">
               <input type="checkbox" checked={showDamage} onChange={(e) => setShowDamage(e.target.checked)} />
               Show hits that didn’t kill
@@ -189,6 +221,7 @@ export default function App() {
             <button role="tab" aria-selected={view === 'report'} onClick={() => setView('report')}>Report</button>
             <button role="tab" aria-selected={view === 'operator'} onClick={() => setView('operator')}>Operator</button>
             <button role="tab" aria-selected={view === 'utility'} onClick={() => { setView('utility'); if (!side) setSide('defender') }}>Utility</button>
+            <button role="tab" aria-selected={view === 'matchup'} onClick={() => setView('matchup')}>Matchup</button>
             {view === 'utility' && (
               <div className="seg" role="group" aria-label="Utility type">
                 {(Object.keys(GROUP_LABEL) as UtilityGroup[]).map((g) => (
@@ -218,6 +251,14 @@ export default function App() {
                 <UtilityFindings layer={util} side={side} def={catalog?.metrics.find((m) => m.id === 'util.placements')}
                                  ultDef={catalog?.metrics.find((m) => m.id === 'ult.usage')}
                                  focus={utilFocus} onFocus={setUtilFocus} onEvidence={setEvidence} />
+              )}
+            </div>
+          ) : view === 'matchup' ? (
+            <div className={loading ? 'board loading' : 'board'} aria-busy={loading}>
+              {!map ? (
+                <p className="summary-note">Pick a map to compare the two teams.</p>
+              ) : (
+                matchup && <MatchupView matchup={matchup} map={map} />
               )}
             </div>
           ) : (

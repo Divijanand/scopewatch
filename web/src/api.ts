@@ -73,6 +73,50 @@ export type Finding = {
   evidence: { metric: string; label: string }
 }
 
+export type MatchupValue = {
+  p: number | null
+  lo: number | null
+  hi: number | null
+  n: number | null
+  league: number | null
+  stance: string | null
+}
+
+export type MatchupPair = {
+  id: string
+  title: string
+  attacker: string
+  defender: string
+  att: MatchupValue | null
+  dfn: MatchupValue | null
+  unit: 'rate' | 'diff'
+  read: 'attacker' | 'defender' | 'even' | 'too_few'
+  edge: string | null
+  sentence: string
+}
+
+export type MatchupTopFinding = Finding & { side: 'attacker' | 'defender' }
+
+export type Matchup = {
+  team_a: { id: string; name: string }
+  team_b: { id: string; name: string }
+  map: string
+  pairs: MatchupPair[]
+  top: { a: MatchupTopFinding[]; b: MatchupTopFinding[] }
+  head_to_head: {
+    series_id: string
+    game_id: string
+    map: string
+    date: string
+    event: string
+    stage: string
+    a_rounds: number
+    b_rounds: number
+    winner: string
+  }[]
+  note: string | null
+}
+
 // The API returns the metric results keyed by id, with `summary` and `summary_note` alongside them
 export type TendenciesResponse = Record<string, unknown> & { summary?: Finding[]; summary_note?: string | null }
 
@@ -122,6 +166,7 @@ export type RoundContext = {
 }
 
 export type Query = { team_id: string; map?: string; side?: string; player_id?: string; since?: string }
+export type MatchupQuery = { team_a: string; team_b: string; map?: string; since?: string; until?: string }
 
 async function get<T>(url: string, init?: RequestInit): Promise<Envelope<T>> {
   const r = await fetch(url, init)
@@ -142,6 +187,7 @@ export const api = {
   tendencies: (q: Query) => get<TendenciesResponse>(`/api/weapons/tendencies?${qs(q)}`),
   spatial: (q: Query) => get<Spatial>(`/api/spatial/operator?${qs(q)}`),
   utility: (q: Query & { group: UtilityGroup; agent?: string }) => get<UtilityLayer>(`/api/utility?${qs(q)}`),
+  matchup: (q: MatchupQuery) => get<Matchup>(`/api/matchup?${qs(q)}`),
   evidence: (q: Query & { metric: string; which: 'supporting' | 'contrary'; bucket?: string; group?: string; agent?: string; page?: number }) =>
     get<Evidence>(`/api/evidence?${qs(q)}`),
   round: (key: string) => get<RoundContext>(`/api/rounds/${encodeURIComponent(key)}`),
