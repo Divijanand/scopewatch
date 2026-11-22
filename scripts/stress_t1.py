@@ -102,7 +102,7 @@ def main():
         f"of those, {len(late):,} are 37-45 s after the plant, and the attackers won {late['label'].mean():.1%} of them."
         if len(late) else "- No training states within one alive player of it late in the post-plant.",
         "- Defenders this far behind on time must defuse within 3 s, which takes 7 s, so the round is the attackers' "
-        "unless the defuse started earlier (a half defuse). The state features don't know about a defuse in progress.",
+        "unless a defuse is already under way, which happens: 5.3% of defuses finish 42 s or more after the plant. Only 2 such states exist in the data; see EVAL_T1_LATE_PLANT.md, where no fix passed and production stays (D-023).",
     ]
 
     out = ROOT / "docs" / "STRESS_T1.md"

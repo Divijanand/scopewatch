@@ -237,3 +237,12 @@ For each habit, the team's most common choice is the opponent's best guess, and 
 **Still true:** the repo holds code only; the data bundle goes only to Fly's private registry; `robots.txt` disallows all crawling; per-team numbers stay out of `docs/`.
 
 **Evidence:** Checked live on 2026-11-21: the page, `/api/catalog`, `/docs` and `/health` return 200 with no login, the app loads Cloud9's report in the browser, and `robots.txt` returns `Disallow: /`.
+
+## D-023: The round win model stays unconstrained for late post-plant states (2026-11-21)
+
+**Decision:** Keep the production win-probability model as it is. No monotonic constraints and no defuse-time feature.
+
+**Why:** The step 5 stress test put 1 attacker against 5 defenders, 3 s before detonation, at 0.47, and we expected near 1 because a full defuse takes 7 s. The follow-up showed the expectation was wrong and the state is outside the data: 5.3% of defuses finish 42 s or more after the plant (defenders often have a defuse under way, and the feed has no defuse-start event), and only 2 states in 324,000 have the defenders 3 or more players up 42 s or later after the plant.
+
+**Evidence** ([EVAL_T1_LATE_PLANT.md](EVAL_T1_LATE_PLANT.md), held-out test series): monotonic constraints raise calibration error from 0.0053 to 0.0100 and the 1v5 state only to 0.56; adding the seconds left after a full defuse gives 0.0093 and 0.53. Neither passes. On the ~6,000 late post-plant states that do exist, production is well calibrated (for example 98.7% actual against 98.3% predicted at 42 s or later).
+
