@@ -29,6 +29,7 @@ from engine.coverage import coverage
 from engine.metrics import REGISTRY, Filters
 from engine.metrics.operator import ENG_COLS, _op_engagements, spawns as _spawns
 from engine.metrics.utility import agent_kit, layer_items
+from engine import report
 
 app = FastAPI(title="Scopewatch", version="2",
               # the hosted demo has no public API docs: everything is behind the judges' password
@@ -133,6 +134,9 @@ def _tendencies(team_id, map, side, since, until, player_id):
         results[mid] = r.to_dict(evidence_limit=0)
         defs.append(f"{d.id}@v{d.version}")
         warns += r.warnings
+    summary, note = report.summarize(results, side)
+    results["summary"] = summary
+    results["summary_note"] = note
     cov = coverage(con(), f)
     return envelope(results, f, warnings=warns + cov["warnings"], definitions=defs, cov=cov)
 

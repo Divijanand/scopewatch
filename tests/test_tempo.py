@@ -76,3 +76,4 @@ def test_late_split_at_league_75th_percentile(con):
     # league attacker first recons on map m: 9 (S1:1), 30 (S1:2), 50 (S2:1) -> p75 = 40
     assert v["split_at"] == 40.0
     assert v["on_time"].n == 2 and v["late"].n == 1  # S1:3 has no recon -> late
+    assert v["before_league_median"].k == 1 and v["before_league_median"].n == 2

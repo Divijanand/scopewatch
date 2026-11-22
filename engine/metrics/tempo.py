@@ -138,6 +138,11 @@ def recon_timing(con, f: Filters) -> MetricResult:
         n=n,
         first_recon=_med_iqr(first_recon),
         no_recon=Rate.of(sum(1 for r in rows if r[3] is None), n),
+        before_league_median=(
+            Rate.of(sum(1 for r in rows if r[3] is not None and league["median"] and float(r[3]) < float(league["median"]["median"])),
+                    sum(1 for r in rows if r[3] is not None))
+            if league["median"] else None
+        ),
         first_recon_agent=[dict(agent=a, n=k) for a, k in ranked(by_agent)],
         recon_to_plant=_med_iqr(recon_to_plant) if f.side == "attacker" else None,
         recon_to_contact=_med_iqr(recon_to_contact) if f.side == "attacker" else None,
