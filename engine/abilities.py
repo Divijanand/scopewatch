@@ -37,7 +37,7 @@ SMOKE = frozenset({
 
 # gathers information
 INFO = frozenset({
-    "recon-bolt", "owl-drone", "haunt", "prowler", "stealth-drone", "seekers", "wingman",
+    "recon-bolt", "owl-drone", "haunt", "prowler", "stealth-drone", "seekers", "wingman", "trailblazer",
 })
 
 

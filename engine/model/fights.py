@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from engine.abilities import FLASH, INFO, SMOKE, STUN, ULTS
-from engine.config import DB_PATH
+from engine.config import DB_PATH, V2_DIR
 from engine.model.winprob import AliveTracker, load_revives
 from engine.weapons import GUNS
 
@@ -49,7 +49,18 @@ def build_fights(con=None, window_s: float = 4.0, radius: float = 2500.0) -> pd.
     if own_con:
         con = duckdb.connect(str(DB_PATH), read_only=True)
     try:
-        return add_utility(fight_core(con), con, window_s=window_s, radius=radius)
+        out = add_utility(fight_core(con), con, window_s=window_s, radius=radius)
+        cols = {r[1] for r in con.execute("PRAGMA table_info('player_rounds')").fetchall()}
+        if "agent" in cols:
+            players = con.execute("SELECT round_key, player_id, agent FROM player_rounds").df()
+            players["player_id"] = players["player_id"].astype(str)
+            out["opener_id"] = out["opener_id"].astype(str)
+            out["other_id"] = out["other_id"].astype(str)
+            opener_agents = players.rename(columns={"player_id": "opener_id", "agent": "opener_agent"})
+            other_agents = players.rename(columns={"player_id": "other_id", "agent": "other_agent"})
+            out = out.merge(opener_agents[["round_key", "opener_id", "opener_agent"]], on=["round_key", "opener_id"], how="left")
+            out = out.merge(other_agents[["round_key", "other_id", "other_agent"]], on=["round_key", "other_id"], how="left")
+        return out
     finally:
         if own_con:
             con.close()
@@ -244,3 +255,15 @@ def add_utility(core: pd.DataFrame, con, window_s: float = 4.0, radius: float = 
         out.loc[idx, "dmg_util_opener"] = dmg["dmg_util_opener"].to_numpy()
         out.loc[idx, "dmg_util_other"] = dmg["dmg_util_other"].to_numpy()
     return out
+
+
+def main():
+    out = build_fights(window_s=4.0, radius=2500.0)
+    target = V2_DIR / "models" / "fights.parquet"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    out.to_parquet(target, index=False)
+    print(f"Wrote {len(out)} fights to {target}")
+
+
+if __name__ == "__main__":
+    main()

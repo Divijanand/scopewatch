@@ -51,7 +51,8 @@ export type MetricResult = {
 
 export type Tendencies = Record<
   'op.possession_full_buy' | 'op.holder_share' | 'op.kill_timing' | 'op.opening' | 'op.win_association' | 'op.forwardness'
-  | 'op.setups' | 'op.deaths' | 'op.gamble' | 'op.escapes' | 'op.how_it_dies' | 'att.executes' | 'op.wpa' | 'team.predictability',
+  | 'op.setups' | 'op.deaths' | 'op.gamble' | 'op.escapes' | 'op.how_it_dies' | 'att.executes' | 'op.wpa' | 'team.predictability'
+  | 'util.recon_timing' | 'fights.dry_duels',
   MetricResult
 >
 

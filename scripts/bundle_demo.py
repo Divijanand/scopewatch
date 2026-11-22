@@ -3,7 +3,7 @@
     python -m scripts.bundle_demo [--with-vod]
 
 cache/ is git-ignored, so the bundle never reaches GitHub. It goes only into the private container image
-the host builds (Fly.io's private registry), served behind the judges' password (api/auth.py).
+the host builds (Fly.io's private registry).
 --with-vod also copies your saved VOD links (cache/v2/user.sqlite) so judges get the timestamps.
 """
 from __future__ import annotations
@@ -20,6 +20,7 @@ def needed(with_vod: bool):
     files = [V2_DIR / "scopewatch.duckdb",
              V2_DIR / "models" / "event_wp.parquet",
              V2_DIR / "models" / "holder_wpa.parquet",
+             V2_DIR / "models" / "fights.parquet",
              MAPS_DIR / "maps.json",
              MAPS_DIR / "minimaps" / "valorant-api-maps.json"]
     files += sorted(MAPS_DIR.glob("*.png"))

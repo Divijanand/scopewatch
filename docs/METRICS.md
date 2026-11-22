@@ -32,6 +32,18 @@ Shared definitions:
 - **Caveat:** Against an Operator = rounds where a defender held an Operator/Outlaw at buy-phase end; 'lost it without a kill' means that holder died before the round result with no Operator kill.
 - **Caveat:** Site entry = the first hit or kill before the plant where the attacker involved stood in that site's callouts (for example A Main or A Rubble for an A plant). Rounds won without a fight there have no entry.
 
+## Dry duels (`fights.dry_duels` v1)
+
+**Question:** With no utility around, does the team win more 1v1 fights than the opener advantage alone predicts?
+
+- **Population:** The team's fights with a winner and no utility from either side in the 4 s before (within 2,500 units), on one map and side
+- **Numerator:** Fights the team's player won, against the league's dry-fight rate in the same state
+- **Unit:** fights
+- **Caveat:** A fight = one pair of opposite-side players from the first gun damage until a kill between them; fights that end with no kill within 3 s aren't counted.
+- **Caveat:** Expected = the league's dry-fight opener win rate for the same map, opener side, alive counts and plant; 1 minus that when the enemy opened.
+- **Caveat:** Dry = no flash, stun, smoke, recon or ult cast near the fight by either team, and no ability damage to either fighter, in the 4 s before. Utility from further away can still matter.
+- **Caveat:** Ranges are 90% series-bootstrap t intervals (D-020). Association, not cause.
+
 ## Where it dies (`op.deaths` v1)
 
 **Question:** Where does the team's Operator/Outlaw holder die, and from where is the kill taken?
@@ -197,3 +209,17 @@ Shared definitions:
 - **Caveat:** Casts whose position failed the quality policy (UTILITY_SPATIAL_SEMANTICS.md) are counted as unknown, never placed on the map.
 - **Caveat:** VCT Americas 2025 positions are sampled about once a second, so they're less precise.
 - **Caveat:** Casts after the round result are left out.
+
+## Recon timing and commit after recon (`util.recon_timing` v1)
+
+**Question:** When does this team use its first recon, and how soon after does it commit?
+
+- **Population:** Team rounds on one map and side from buy-phase end until round end (pre/post-plant casts only).
+- **Numerator:** Rounds with at least one recon cast.
+- **Unit:** rounds
+- **Caveat:** Recon = recon-bolt, owl-drone, haunt, prowler, stealth-drone, seekers, wingman and Skye's trailblazer.
+- **Caveat:** Commit after recon: time from the first recon to the plant (rounds with a plant) or to the team's first gun damage dealt or taken, only when the recon came first.
+- **Caveat:** Late = first recon after the league's 75th percentile for this map and side, or no recon at all.
+- **Caveat:** Association, not cause.
+- **Caveat:** Late recon can be a choice (for example a slow default), not always a denial.
+- **Caveat:** The feed records casts, not recons destroyed before value.

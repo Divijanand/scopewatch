@@ -173,6 +173,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const s0 = setups?.breakdown[0]
   const d0 = deaths?.breakdown[0]
   const exe = t['att.executes']
+  const recon = t['util.recon_timing']
+  const duels = t['fights.dry_duels']
   const wpa = t['op.wpa']
   const pred = t['team.predictability']
   const score = pred?.value.score as number | null | undefined
@@ -200,6 +202,11 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const timingRead = top === '0-20s' ? 'an opening-pick rifle' : top === '60s+' ? 'a retake and post-plant rifle' : 'a mid-round rifle'
   const fv = fwd.value as { team_median?: number; league_median?: number; n?: number }
   const delta = fv.team_median != null && fv.league_median != null ? fv.team_median - fv.league_median : null
+  const rv = recon?.value as any
+  const dv = duels?.value as any
+  const dpts = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v * 100).toFixed(1)}`
+  const duelRows = (duels?.breakdown ?? []).filter((b: any) => b.n > 0).slice(0, 7)
+  const agentsBeyond = (duels?.breakdown ?? []).filter((b: any) => b.agent && b.beyond_noise && b.diff > 0).slice(0, 2)
 
   return (
     <div className="findings">
@@ -240,6 +247,70 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
             For each habit: if an opponent always guessed their most common choice, how often they’d be right. The number on
             the right is the percentage of other teams on this map and side that are less predictable. Click a habit to open those
             rounds. Predictable isn’t bad on its own; it’s what an opponent can prepare for.
+          </p>
+        </section>
+      )}
+      {recon && rv?.n >= (rv.min_league ?? 20) && rv.first_recon && (
+        <section>
+          <h3>Recon timing</h3>
+          <p className="claim">
+            Their first recon goes out at about <b>{rv.first_recon.median} s</b>
+            {rv.vs_league != null && Math.abs(rv.vs_league) >= 1
+              ? <> ({Math.abs(rv.vs_league)} s {rv.vs_league < 0 ? 'earlier' : 'later'} than the league’s {rv.league_first_recon.median} s)</>
+              : rv.league_first_recon && <> (league {rv.league_first_recon.median} s)</>}
+            {side === 'attacker' && rv.recon_to_plant && <>, and they plant about <b>{rv.recon_to_plant.median} s</b> later</>}.
+          </p>
+          <span className={rv.n < 40 ? 'evidence thin' : 'evidence'}>
+            {rv.n} rounds; middle half of first recons {rv.first_recon.q1}–{rv.first_recon.q3} s; no recon in {pct(rv.no_recon)} of rounds.
+            {side === 'attacker' && rv.recon_to_contact && <> First fight {rv.recon_to_contact.median} s after the recon.</>}
+          </span>
+          {rv.late?.n > 0 && rv.on_time?.n > 0 && (
+            <p className="aside">
+              When their first recon comes late (after {rv.split_at} s, the league’s slowest quarter) or not at all, they win{' '}
+              <b>{pct(rv.late)}</b> of rounds (likely {Math.round(rv.late.lo * 100)}–{Math.round(rv.late.hi * 100)}%), against{' '}
+              {pct(rv.on_time)} on time (likely {Math.round(rv.on_time.lo * 100)}–{Math.round(rv.on_time.hi * 100)}%).
+              {' '}Late recon is sometimes a slow default, not a denial; the feed doesn’t record a dart being destroyed.
+            </p>
+          )}
+          {rv.first_recon_agent?.length > 0 && (
+            <p className="hint">First recon usually from {list(rv.first_recon_agent.slice(0, 2).map((a: any) => `${cap(a.agent)} (${a.n})`))}.</p>
+          )}
+          <ShowRounds n={recon.evidence_counts.supporting + recon.evidence_counts.contrary} onClick={() => onEvidence({
+            metric: recon.metric, claim: 'Rounds where their first recon came late or not at all.',
+            supportingLabel: `Lost (${recon.evidence_counts.supporting})`,
+            contraryLabel: `Won (${recon.evidence_counts.contrary})`,
+          })} />
+        </section>
+      )}
+      {duels?.warnings.map((w) => <p key={w} className="hint">{w}</p>)}
+      {duels && dv?.total >= 20 && dv.diff != null && (
+        <section>
+          <h3>Dry duels</h3>
+          <p className="claim">
+            With no utility around, they win {Math.abs(dv.diff) < 0.01
+              ? <>about as many fights as the opener advantage predicts</>
+              : <><b>{Math.abs(dv.diff * 100).toFixed(1)} points</b> {dv.diff > 0 ? 'more' : 'fewer'} fights than the opener advantage predicts</>}
+            {dv.diff > 0 && agentsBeyond.length > 0 && <>, most clearly on {list(agentsBeyond.map((a: any) => cap(a.agent)))}</>}.
+          </p>
+          <span className={dv.total < 100 ? 'evidence thin' : 'evidence'}>
+            {dv.total} dry fights; likely between {dpts(dv.lo)} and {dpts(dv.hi)} points.
+            {' '}{dv.beyond_noise ? 'The range excludes 0.' : 'The range includes 0, so this is a hint, not a real difference yet.'}
+          </span>
+          <ul className="carriers">
+            {duelRows.map((b: any) => (
+              <li key={b.bucket + (b.agent ?? '')}>
+                <span className="wpa-row">
+                  <span className="who">{b.agent ? cap(b.agent) : b.label}</span>
+                  <span className="agents">{b.n} fights, won {Math.round(b.actual * 100)}% against {Math.round(b.expected * 100)}% expected</span>
+                  <span className="num">{dpts(b.diff)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">
+            The player who shoots first wins most fights, so each fight is compared with the league’s rate for the same
+            map, side, players alive and plant. Dry = no flash, smoke, recon, ult or ability damage near the fight in the
+            4 s before, from either team.
           </p>
         </section>
       )}
