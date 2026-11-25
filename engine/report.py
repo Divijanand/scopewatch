@@ -1,8 +1,14 @@
-"""Step 5d: the "Prepare for these" summary. Turns metric results into at most five findings that are
-beyond noise against the league, each with a headline (team number, range, league number) and a prepare line."""
+"""Step 5d: the "Prepare for these" summary: at most five findings that differ from the league, each with a headline
+(team number, range, league number) and a prepare line.
+
+Each template returns every check it ran, with a `p_value` and `stands_out` (the range excludes the league). The
+whole report's checks then go through false-discovery control (D-024), because some always look unusual by luck."""
 from __future__ import annotations
 
-NO_FINDINGS_NOTE = "Nothing stands out beyond noise on this map and side: they play close to the league average."
+from engine.significance import benjamini_hochberg, dispersion, rate_p, two_rates_p
+
+NO_FINDINGS_NOTE = ("Nothing here clears our bar for a real difference from the league. They may play like most teams, "
+                    "or there may be too few games to tell.")
 ORDER = ["att.executes", "util.recon_timing", "team.retakes", "team.post_plant", "team.economy", "team.openings", "op.wpa", "fights.dry_duels", "team.predictability", "team.closing"]
 
 
@@ -25,8 +31,8 @@ def vs_league(r, league):
     return abs(r["p"] - league["p"]) / half
 
 
-def _finding(fid, metric, title, headline, prepare, team, league, score):
-    return dict(id=fid, metric=metric, title=title, headline=headline, prepare=prepare,
+def _finding(fid, metric, title, headline, prepare, team, league, score, p_value, stands_out):
+    return dict(p_value=p_value, stands_out=stands_out, id=fid, metric=metric, title=title, headline=headline, prepare=prepare,
                 team=team["p"], league=league["p"], n=team["n"], lo=team["lo"], hi=team["hi"],
                 score=score, unit="rate", evidence={"metric": metric, "label": "Show the rounds"})
 
@@ -35,16 +41,18 @@ def findings_att_executes(r):
     out = []
     for b in r.get("breakdown", []):
         tm, lg = b.get("rate"), b.get("league")
-        s = vs_league(tm, lg)
-        if s is None:
-            continue
         site = b.get("site", "site")
+        fid = f"att.executes.{site}"
+        p = rate_p(tm, (lg or {}).get("p"), dispersion(fid))
+        if p is None:
+            continue
+        s = vs_league(tm, lg)
         prep = (f"Expect {site}: they go there more than most teams." if tm["p"] > lg["p"]
                 else f"{site} is rare for them: they mostly go elsewhere.")
         out.append(_finding(
-            f"att.executes.{site}", "att.executes", "Site choice",
-            f"They plant on {site} in {pct(tm['p'])} of attack rounds (likely {pct(tm['lo'])}–{pct(tm['hi'])}), league {pct(lg['p'])}.", prep, tm, lg, s
-        ))
+            fid, "att.executes", "Site choice",
+            f"They plant on {site} in {pct(tm['p'])} of attack rounds (likely {pct(tm['lo'])}–{pct(tm['hi'])}), league {pct(lg['p'])}.",
+            prep, tm, lg, s or 0.0, p, s is not None))
     return out
 
 
@@ -52,49 +60,46 @@ def findings_recon(r):
     out = []
     v = r.get("value", {})
     early = v.get("before_league_median")
-    s = vs_league(early, {"p": 0.5})
-    if s is not None:
+    p = rate_p(early, 0.5, dispersion("util.recon_timing.before"))
+    if p is not None:
+        s = vs_league(early, {"p": 0.5})
         prep = ("Plan for an early dart: their timing is built on it."
                 if early["p"] > 0.5 else "Their first recon comes late: early pressure meets them before their info.")
         out.append(_finding(
             "util.recon_timing.before", "util.recon_timing", "Recon timing",
             f"Their first recon comes before the league's median time in {pct(early['p'])} of rounds (likely {pct(early['lo'])}–{pct(early['hi'])}), against half for the league.",
-            prep, early, {"p": 0.5}, s,
-        ))
+            prep, early, {"p": 0.5}, s or 0.0, p, s is not None))
     late, on = v.get("late"), v.get("on_time")
-    if (late and on and late.get("p") is not None and on.get("p") is not None
-            and not late.get("small_sample") and not on.get("small_sample")):
-        if late["lo"] > on["hi"] or late["hi"] < on["lo"]:
-            hw = max((((late["hi"] - late["lo"]) / 2) + ((on["hi"] - on["lo"]) / 2)) / 2, 1e-6)
-            sc = abs(late["p"] - on["p"]) / hw
-            out.append(_finding(
-                "util.recon_timing.late", "util.recon_timing", "When recon comes late",
-                f"When their first recon comes late they win {pct(late['p'])} (likely {pct(late['lo'])}–{pct(late['hi'])}), against {pct(on['p'])} on time.",
-                "Deny or delay their first recon." if late["p"] < on["p"] else "", late, on, sc,
-            ))
-    return [f for f in out if f["prepare"]]
+    p = two_rates_p(late, on, dispersion("util.recon_timing.late"), "lower")   # only "late is worse" has a prepare line
+    if p is not None:
+        hw = max((((late["hi"] - late["lo"]) / 2) + ((on["hi"] - on["lo"]) / 2)) / 2, 1e-6)
+        out.append(_finding(
+            "util.recon_timing.late", "util.recon_timing", "When recon comes late",
+            f"When their first recon comes late they win {pct(late['p'])} (likely {pct(late['lo'])}–{pct(late['hi'])}), against {pct(on['p'])} on time.",
+            "Deny or delay their first recon.", late, on, abs(late["p"] - on["p"]) / hw, p, late["hi"] < on["lo"]))
+    return out
 
 
 def findings_dry_duels(r):
     out = []
     v = r.get("value", {})
-    if v.get("beyond_noise") and v.get("diff") is not None:
+    if v.get("p_value") is not None and v.get("diff") is not None:
         half = max((v["hi"] - v["lo"]) / 2, 1e-6)
         sc = abs(v["diff"]) / half
         more = v["diff"] > 0
         out.append(dict(
-            id="fights.dry_duels.overall", metric="fights.dry_duels", title="Dry duels",
+            p_value=v["p_value"], stands_out=bool(v.get("beyond_noise")), id="fights.dry_duels.overall", metric="fights.dry_duels", title="Dry duels",
             headline=f"With no utility around they win {abs(v['diff']) * 100:.1f} points {'more' if more else 'fewer'} fights than the opener advantage predicts (likely {_signed(v['lo'] * 100)} to {_signed(v['hi'] * 100)} points).",
             prepare="Don't take even dry duels: use utility first." if more else "Their players lose dry duels: take the fight without utility.",
             team=v["diff"], league=0.0, n=v["n"], lo=v["lo"], hi=v["hi"], score=sc, unit="diff", evidence={"metric": "fights.dry_duels", "label": "Show the rounds"}
         ))
     for b in r.get("breakdown", []):
-        if b.get("bucket") == "agent" and b.get("beyond_noise"):
+        if b.get("bucket") == "agent" and b.get("p_value") is not None:
             half = max((b["hi"] - b["lo"]) / 2, 1e-6)
             sc = abs(b["diff"]) / half
             more = b["diff"] > 0
             out.append(dict(
-                id=f"fights.dry_duels.{b['agent']}", metric="fights.dry_duels", title=f"Duels on {b['agent'].capitalize()}",
+                p_value=b["p_value"], stands_out=bool(b.get("beyond_noise")), id=f"fights.dry_duels.{b['agent']}", metric="fights.dry_duels", title=f"Duels on {b['agent'].capitalize()}",
                 headline=f"With no utility around they win {abs(b['diff']) * 100:.1f} points {'more' if more else 'fewer'} fights than the opener advantage predicts (likely {_signed(b['lo'] * 100)} to {_signed(b['hi'] * 100)} points).",
                 prepare="Don't take even dry duels: use utility first." if more else "Their players lose dry duels: take the fight without utility.",
                 team=b["diff"], league=0.0, n=b["n"], lo=b["lo"], hi=b["hi"], score=sc, unit="diff", evidence={"metric": "fights.dry_duels", "label": "Show the rounds"}
@@ -105,32 +110,34 @@ def findings_dry_duels(r):
 def findings_predictability(r):
     out = []
     for b in r.get("breakdown", []):
-        if (b.get("percentile") or 0) < 80 or b.get("small_sample"):   # None when the league has too few teams
-            continue
         rt = b.get("rate")
         lg = {"p": b.get("league_median")}
-        s = vs_league(rt, lg)
-        if s is None:
+        fid = f"team.predictability.{b['habit']}"
+        if b.get("small_sample") or b.get("percentile") is None:   # None when the league has too few teams
             continue
+        p = rate_p(rt, lg["p"], dispersion(fid), "higher")
+        if p is None:
+            continue
+        s = vs_league(rt, lg)
         out.append(_finding(
-            f"team.predictability.{b['habit']}", "team.predictability", f"Predictable: {b['label']}",
+            fid, "team.predictability", f"Predictable: {b['label']}",
             f"{b['label']}: they pick {b['choice']} in {pct(rt['p'])} of rounds (likely {pct(rt['lo'])}–{pct(rt['hi'])}), more predictable than {b['percentile']}% of teams.",
-            f"Prepare for {b['choice']}.", rt, lg, s
-        ))
+            f"Prepare for {b['choice']}.", rt, lg, s or 0.0, p,
+            s is not None and rt["p"] > lg["p"] and b["percentile"] >= 80))
     return out
 
 
 def _compare(fid, metric, title, tm, lg, headline, higher, lower):
-    """One team-vs-league rate finding. `headline(X, lo, hi, Y)` gets formatted percentages; `higher` and
-    `lower` are the prepare lines for each direction (None = no finding in that direction)."""
+    """One team-vs-league rate check. `headline(X, lo, hi, Y)` gets formatted percentages; `higher` and `lower` are
+    the prepare lines for each direction. With only one, the check is one-sided in that direction, fixed in advance."""
+    direction = "both" if higher and lower else "higher" if higher else "lower"
+    p = rate_p(tm, (lg or {}).get("p"), dispersion(fid), direction)
+    if p is None:
+        return []
     s = vs_league(tm, lg)
-    if s is None:
-        return []
     prep = higher if tm["p"] > lg["p"] else lower
-    if not prep:
-        return []
     return [_finding(fid, metric, title, headline(pct(tm["p"]), pct(tm["lo"]), pct(tm["hi"]), pct(lg["p"])),
-                     prep, tm, lg, s)]
+                     prep or "", tm, lg, s or 0.0, p, s is not None and bool(prep))]
 
 
 def findings_wpa(r):
@@ -138,12 +145,12 @@ def findings_wpa(r):
     if v.get("mean") is None or v.get("league_mean") is None or v.get("lo") is None or v.get("hi") is None:
         return []
     lm = v["league_mean"]
-    if v["lo"] <= lm <= v["hi"]:
+    if v.get("p_value") is None:      # one series: no range
         return []
     sc = abs(v["mean"] - lm) / max((v["hi"] - v["lo"]) / 2, 1e-6)
     higher = v["mean"] > lm
     return [dict(
-        id="op.wpa", metric="op.wpa", title="Operator value",
+        p_value=v["p_value"], stands_out=not v["lo"] <= lm <= v["hi"], id="op.wpa", metric="op.wpa", title="Operator value",
         headline=f"An Operator round is worth {_signed(v['mean'])} points of round-win chance to them "
                  f"(likely {_signed(v['lo'])} to {_signed(v['hi'])}), league {_signed(lm)}.",
         prepare=("Their Operator is a real threat: plan to trade it or deny it." if higher
@@ -196,7 +203,7 @@ def findings_economy(r):
                       None, "Their bonus rounds are weak: force buy after losing the pistol."))
     for b in r.get("breakdown") or []:
         words, hi, lo = ECO_LINES.get(b.get("bucket"), (None, None, None))
-        if words:
+        if words and (hi or lo):      # a matchup with no prepare line is never shown, so it isn't a check
             out += _compare(f"team.economy.{b['bucket']}", m, "Buy rounds", b.get("rate"), b.get("league"),
                             lambda x, a, c, y, w=words: f"On {w} they win {x} (likely {a}–{c}), league {y}.", hi, lo)
     return out
@@ -243,12 +250,24 @@ TEMPLATES = {
 }
 
 
-def summarize(results: dict, side: str | None, k: int = 5) -> tuple[list[dict], str | None]:
-    items = []
+def checks(results: dict) -> list[dict]:
+    """Every check the report ran, kept or not."""
+    out = []
     for mid, fn in TEMPLATES.items():
         r = results.get(mid)
         if r:
-            items += fn(r)
+            out += fn(r)
+    return out
+
+
+def select(items: list[dict]) -> list[dict]:
+    """The checks that stand out and survive false-discovery control over all of them."""
+    kept = benjamini_hochberg([f["p_value"] for f in items])
+    return [f for f, k in zip(items, kept) if k and f["stands_out"]]
+
+
+def summarize(results: dict, side: str | None, k: int = 5) -> tuple[list[dict], str | None]:
+    items = select(checks(results))
     if not items:
         return [], NO_FINDINGS_NOTE
     rank = {m: i for i, m in enumerate(ORDER)}

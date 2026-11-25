@@ -51,7 +51,7 @@ def test_language_bans_absent_in_templates():
     results = {
         "att.executes": {"breakdown": [{"site": "A", "rate": _rate(0.70, 0.62, 0.78), "league": _rate(0.50, 0.45, 0.55)}]},
         "util.recon_timing": {"value": {"before_league_median": _rate(0.70, 0.62, 0.78)}},
-        "fights.dry_duels": {"value": {"n": 200, "diff": 0.08, "lo": 0.02, "hi": 0.14, "beyond_noise": True}},
+        "fights.dry_duels": {"value": {"n": 200, "diff": 0.08, "lo": 0.02, "hi": 0.14, "beyond_noise": True, "p_value": 0.001}},
         "team.predictability": {"breakdown": [{"habit": "h", "label": "Early A", "choice": "A", "percentile": 85,
                                                    "small_sample": False, "rate": _rate(0.72, 0.64, 0.80), "league_median": 0.50}]},
     }
@@ -77,12 +77,12 @@ ALL = {
     "att.executes": {"value": {}, "breakdown": [{"site": "A", "rate": HI, "league": LG}]},
     "util.recon_timing": {"value": {"before_league_median": HI, "late": _rate(0.30, 0.23, 0.38),
                                     "on_time": _rate(0.58, 0.51, 0.65)}},
-    "fights.dry_duels": {"value": {"n": 200, "diff": 0.08, "lo": 0.02, "hi": 0.14, "beyond_noise": True},
+    "fights.dry_duels": {"value": {"n": 200, "diff": 0.08, "lo": 0.02, "hi": 0.14, "beyond_noise": True, "p_value": 0.001},
                          "breakdown": [{"bucket": "agent", "agent": "jett", "n": 90, "diff": -0.1, "lo": -0.18,
-                                        "hi": -0.02, "beyond_noise": True}]},
+                                        "hi": -0.02, "beyond_noise": True, "p_value": 0.001}]},
     "team.predictability": {"value": {}, "breakdown": [{"habit": "h", "label": "Early A", "choice": "A", "percentile": 85,
                                                         "small_sample": False, "rate": HI, "league_median": 0.50}]},
-    "op.wpa": {"value": {"n": 80, "mean": 6.0, "lo": 2.0, "hi": 10.0, "league_mean": 0.5}},
+    "op.wpa": {"value": {"n": 80, "mean": 6.0, "lo": 2.0, "hi": 10.0, "league_mean": 0.5, "p_value": 0.001}},
     "team.retakes": _pair(retake=LO, plants_faced=HI),
     "team.post_plant": _pair(post_plant_win=LO, pre_plant_losses=HI),
     "team.economy": {"value": {"pistol": HI, "league_pistol": LG, "bonus": LO, "league_bonus": LG},
@@ -132,7 +132,7 @@ def test_direction_without_a_prepare_line_gives_nothing():
 
 
 def test_wpa_inside_range_is_noise():
-    out, _ = summarize({"op.wpa": {"value": {"n": 80, "mean": 2.0, "lo": -1.0, "hi": 5.0, "league_mean": 0.5}}}, "attacker")
+    out, _ = summarize({"op.wpa": {"value": {"n": 80, "mean": 2.0, "lo": -1.0, "hi": 5.0, "league_mean": 0.5, "p_value": 0.001}}}, "attacker")
     assert out == []
 
 

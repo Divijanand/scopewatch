@@ -2,6 +2,7 @@ import duckdb
 import pandas as pd
 import numpy as np
 from engine.config import DB_PATH, V2_DIR
+from engine.significance import mean_p
 from engine.metrics.core import Filters, MetricDef, MetricResult, Unknown, bootstrap_mean, metric
 
 WPA_PARQUET = V2_DIR / "models" / "event_wp.parquet"
@@ -96,5 +97,6 @@ def get_op_wpa(con: duckdb.DuckDBPyConnection, f: Filters) -> MetricResult:
     if f.until: ldf = ldf[ldf['started_at'] < f.until]
     
     res.value["league_mean"] = round(float(ldf['wpa_pp'].mean()), 2) if not ldf.empty else 0.0
+    res.value["p_value"] = mean_p(mean_wpa, lo, hi, res.series, null=res.value["league_mean"])
 
     return res

@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from engine.config import V2_DIR
+from ..significance import benjamini_hochberg, mean_p
 from .core import Filters, MetricDef, MetricResult, bootstrap_mean, metric
 
 FIGHTS_PARQUET = V2_DIR / "models" / "fights.parquet"
@@ -78,12 +79,13 @@ def team_view(df: pd.DataFrame, rates: pd.DataFrame, team_id: str) -> pd.DataFra
 
 def section(g: pd.DataFrame) -> dict:
     if g.empty:
-        return dict(n=0, actual=None, expected=None, diff=None, lo=None, hi=None, beyond_noise=False)
+        return dict(n=0, actual=None, expected=None, diff=None, lo=None, hi=None, beyond_noise=False, p_value=None)
     vals = (g["actual"] - g["expected"]).astype(float)
     lo, hi = bootstrap_mean(vals.tolist(), g["series_id"].astype(str).tolist(), n=1000, seed=42)
+    p = mean_p(float(vals.mean()), lo, hi, g["series_id"].nunique())   # None with one series: no range, no finding
     return dict(n=int(len(g)), actual=round(float(g["actual"].mean()), 4), expected=round(float(g["expected"].mean()), 4),
                 diff=round(float(vals.mean()), 4), lo=round(float(lo), 4), hi=round(float(hi), 4),
-                beyond_noise=bool(lo > 0 or hi < 0))
+                beyond_noise=bool(p is not None and (lo > 0 or hi < 0)), p_value=p)
 
 
 @metric(DRY_DUELS)
@@ -112,6 +114,10 @@ def dry_duels(con, f: Filters) -> MetricResult:
     for agent, g in team.groupby("team_agent"):
         if isinstance(agent, str) and agent and len(g) >= MIN_AGENT_FIGHTS:
             res.breakdown.append(dict(bucket="agent", agent=agent, **section(g)))
+    # naming one agent out of several is a multiple comparison (D-024)
+    agents = [b for b in res.breakdown if b["bucket"] == "agent"]
+    for b, kept in zip(agents, benjamini_hochberg([b["p_value"] for b in agents])):
+        b["survives"] = bool(kept and b["beyond_noise"])
     res.supporting = sorted(set(team.loc[team["actual"] == 1, "round_key"].astype(str)))
     res.contrary = sorted(set(team.loc[team["actual"] == 0, "round_key"].astype(str)))
     res.series = int(team["series_id"].nunique())

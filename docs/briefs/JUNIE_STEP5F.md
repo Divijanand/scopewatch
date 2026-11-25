@@ -65,7 +65,7 @@ Damaging abilities are those with `engagements.kind = 'damage'` and a weapon not
 
 ## 6. UI and the summary
 - A **Guns** section on the Report tab (step 5d) with the Arsenal, Eco and Close-range cards. The post-plant card goes in Attack (stall) and Defence (retake ults).
-- One finding template per new metric in `engine/report.py`, beyond-noise only, with a `prepare` line. Example (format only): "Expect a Viper ult on the spike: they use one in 41% of post-plants (league 12%)."
+- One finding template per new metric in `engine/report.py`, with a `prepare` line. Since D-024 a template returns **every check it ran**, not only the ones that stand out: use `_compare(...)` for rates (it sets `p_value` and `stands_out`), and for means put `p_value` from `engine.significance.mean_p` in the metric. Give each new test id a value in `DISPERSION` only if `scripts/eval_findings.py` measures it; otherwise the worst case applies. Keep checks few: each one raises the bar for the rest. Example (format only): "Expect a Viper ult on the spike: they use one in 41% of post-plants (league 12%)."
 
 ## Tests (`tests/test_guns.py`, `tests/test_post_plant_util.py`, synthetic)
 - `general` hits don't count toward headshot rates. A single-hit kill needs exactly one hit from the killer on that victim within 3 s.

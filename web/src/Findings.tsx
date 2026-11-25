@@ -256,7 +256,7 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const dv = duels?.value as any
   const dpts = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v * 100).toFixed(1)}`
   const duelRows = (duels?.breakdown ?? []).filter((b: any) => b.n > 0).slice(0, 7)
-  const agentsBeyond = (duels?.breakdown ?? []).filter((b: any) => b.agent && b.beyond_noise && b.diff > 0).slice(0, 2)
+  const agentsBeyond = (duels?.breakdown ?? []).filter((b: any) => b.agent && b.survives && b.diff > 0).slice(0, 2)
 
   const predCard = pred && pred.breakdown.length > 0 && (
       <section>

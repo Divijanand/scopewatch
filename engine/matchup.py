@@ -1,8 +1,12 @@
 """Step 5e: two teams on one map. Pairs one team's attack measures with the other's defence measures,
-each against the league, and says where an edge is beyond noise. Built only from existing metric results."""
+each against the league, and says where an edge is beyond noise. Built only from existing metric results.
+
+A matchup runs up to 20 checks, so a stance counts only if it survives false-discovery control over all of them
+(D-024). An edge compares the two stances; it isn't a test of one team against the other."""
 from __future__ import annotations
 
 from engine.report import _signed, pct
+from engine.significance import benjamini_hochberg, dispersion, rate_p
 
 
 MIN_N = 20
@@ -38,7 +42,7 @@ def read(s_att, s_def):
 
 
 def _missing_rate():
-    return dict(p=None, lo=None, hi=None, n=None, league=None, stance=None)
+    return dict(p=None, lo=None, hi=None, n=None, league=None, stance=None, p_value=None)
 
 
 def _num(v):
@@ -61,18 +65,20 @@ def _economy_bucket(data: dict, bucket: str):
     return None
 
 
-def _rate_pair(rate, league_rate, higher_is_better=True):
+def _rate_side(test_id, rate, league_rate, higher_is_better=True):
     if not rate or not league_rate:
-        return _missing_rate(), None
-    s = stance(rate, league_rate, higher_is_better=higher_is_better)
-    return dict(p=rate.get("p"), lo=rate.get("lo"), hi=rate.get("hi"), n=rate.get("n"), league=league_rate.get("p"), stance=s), s
+        return _missing_rate()
+    st = stance(rate, league_rate, higher_is_better=higher_is_better)
+    return dict(p=rate.get("p"), lo=rate.get("lo"), hi=rate.get("hi"), n=rate.get("n"), league=league_rate.get("p"),
+                stance=st, p_value=None if st is None else rate_p(rate, league_rate.get("p"), dispersion(test_id)))
 
 
-def _dry_pair(value):
+def _dry_side(value):
     if not value:
-        return _missing_rate(), None
-    s = duel_stance(value)
-    return dict(p=value.get("diff"), lo=value.get("lo"), hi=value.get("hi"), n=value.get("n"), league=0.0, stance=s), s
+        return _missing_rate()
+    st = duel_stance(value) if value.get("p_value") is not None else None    # one series: no range
+    return dict(p=value.get("diff"), lo=value.get("lo"), hi=value.get("hi"), n=value.get("n"), league=0.0,
+                stance=st, p_value=None if st is None else value["p_value"])
 
 
 def _sentence(pair_id: str, x_name: str, y_name: str, att: dict, dfn: dict) -> str:
@@ -92,49 +98,45 @@ def _sentence(pair_id: str, x_name: str, y_name: str, att: dict, dfn: dict) -> s
 
 
 def _pair(pair_id: str, title: str, attacker_id: str, attacker_name: str, xa: dict, defender_id: str, defender_name: str, yd: dict):
+    ap = (_metric(xa, "team.post_plant") or {}).get("value") or {}
+    dp = (_metric(yd, "team.retakes") or {}).get("value") or {}
+    unit = "rate"
     if pair_id == "plant_reach":
-        ap = (_metric(xa, "team.post_plant") or {}).get("value", {})
-        dp = (_metric(yd, "team.retakes") or {}).get("value", {})
-        att, s_att = _rate_pair(ap.get("plant_share"), ap.get("league_plant_share"), higher_is_better=True)
-        dfn, s_def = _rate_pair(dp.get("plants_faced"), dp.get("league_plants_faced"), higher_is_better=False)
-        unit = "rate"
+        att = _rate_side("team.post_plant.plant_share", ap.get("plant_share"), ap.get("league_plant_share"))
+        dfn = _rate_side("team.retakes.plants_faced", dp.get("plants_faced"), dp.get("league_plants_faced"),
+                         higher_is_better=False)
     elif pair_id == "post_plant":
-        ap = (_metric(xa, "team.post_plant") or {}).get("value", {})
-        dp = (_metric(yd, "team.retakes") or {}).get("value", {})
-        att, s_att = _rate_pair(ap.get("post_plant_win"), ap.get("league_post_plant_win"), higher_is_better=True)
-        dfn, s_def = _rate_pair(dp.get("retake"), dp.get("league_retake"), higher_is_better=True)
-        unit = "rate"
+        att = _rate_side("team.post_plant.win", ap.get("post_plant_win"), ap.get("league_post_plant_win"))
+        dfn = _rate_side("team.retakes.retake", dp.get("retake"), dp.get("league_retake"))
     elif pair_id == "first_blood":
-        ap = (_metric(xa, "team.openings") or {}).get("value", {})
-        dp = (_metric(yd, "team.openings") or {}).get("value", {})
-        att, s_att = _rate_pair(ap.get("first_blood"), ap.get("league_first_blood"), higher_is_better=True)
-        dfn, s_def = _rate_pair(dp.get("first_blood"), dp.get("league_first_blood"), higher_is_better=True)
-        unit = "rate"
+        ao = (_metric(xa, "team.openings") or {}).get("value") or {}
+        do = (_metric(yd, "team.openings") or {}).get("value") or {}
+        att = _rate_side("team.openings.first_blood", ao.get("first_blood"), ao.get("league_first_blood"))
+        dfn = _rate_side("team.openings.first_blood", do.get("first_blood"), do.get("league_first_blood"))
     elif pair_id == "dry_duels":
-        att, s_att = _dry_pair((_metric(xa, "fights.dry_duels") or {}).get("value"))
-        dfn, s_def = _dry_pair((_metric(yd, "fights.dry_duels") or {}).get("value"))
+        att = _dry_side((_metric(xa, "fights.dry_duels") or {}).get("value"))
+        dfn = _dry_side((_metric(yd, "fights.dry_duels") or {}).get("value"))
         unit = "diff"
     else:
-        ap = _economy_bucket(xa, "scrappy_vs_full") or {}
-        dp = _economy_bucket(yd, "full_vs_anti") or {}
-        att, s_att = _rate_pair(ap.get("rate"), ap.get("league"), higher_is_better=True)
-        dfn, s_def = _rate_pair(dp.get("rate"), dp.get("league"), higher_is_better=True)
-        unit = "rate"
+        ae = _economy_bucket(xa, "scrappy_vs_full") or {}
+        de = _economy_bucket(yd, "full_vs_anti") or {}
+        att = _rate_side("team.economy.scrappy_vs_full", ae.get("rate"), ae.get("league"))
+        dfn = _rate_side("team.economy.full_vs_anti", de.get("rate"), de.get("league"))
+    return dict(id=pair_id, title=title, attacker=attacker_id, defender=defender_id, att=att, dfn=dfn, unit=unit,
+                sentence=_sentence(pair_id, attacker_name, defender_name, att, dfn))
 
-    r = read(s_att, s_def)
-    edge = attacker_id if r == "attacker" else defender_id if r == "defender" else None
-    return dict(
-        id=pair_id,
-        title=title,
-        attacker=attacker_id,
-        defender=defender_id,
-        att=att,
-        dfn=dfn,
-        unit=unit,
-        read=r,
-        edge=edge,
-        sentence=_sentence(pair_id, attacker_name, defender_name, att, dfn),
-    )
+
+def _decide(pairs: list[dict]) -> list[dict]:
+    """Drop stances that don't survive false-discovery control over the whole matchup, then read each pair."""
+    sides = [x for p in pairs for x in (p["att"], p["dfn"])]
+    for x, kept in zip(sides, benjamini_hochberg([x["p_value"] for x in sides])):
+        if x["stance"] and not kept:
+            x["stance"] = 0
+    for p in pairs:
+        r = read(p["att"]["stance"], p["dfn"]["stance"])
+        p["read"] = r
+        p["edge"] = p["attacker"] if r == "attacker" else p["defender"] if r == "defender" else None
+    return pairs
 
 
 def facing_pairs(team_a_id: str, team_a_name: str, team_b_id: str, team_b_name: str,
@@ -151,7 +153,7 @@ def facing_pairs(team_a_id: str, team_a_name: str, team_b_id: str, team_b_name: 
         out.append(_pair(pid, title, team_a_id, team_a_name, a_att, team_b_id, team_b_name, b_def))
     for pid, title in specs:
         out.append(_pair(pid, title, team_b_id, team_b_name, b_att, team_a_id, team_a_name, a_def))
-    return out
+    return _decide(out)
 
 
 def top_lines(att_data, def_data, k=3):
@@ -175,7 +177,7 @@ def head_to_head(con, a, b, since=None, until=None, limit=10):
         where.append("g.started_at >= ?")
         params.append(since)
     if until:
-        where.append("g.started_at <= ?")
+        where.append("g.started_at < ?")      # exclusive, like every other filter
         params.append(until)
     params.append(limit)
 

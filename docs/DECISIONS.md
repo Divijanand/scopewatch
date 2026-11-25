@@ -246,3 +246,14 @@ For each habit, the team's most common choice is the opponent's best guess, and 
 
 **Evidence** ([EVAL_T1_LATE_PLANT.md](EVAL_T1_LATE_PLANT.md), held-out test series): monotonic constraints raise calibration error from 0.0053 to 0.0100 and the 1v5 state only to 0.56; adding the seconds left after a full defuse gives 0.0093 and 0.53. Neither passes. On the ~6,000 late post-plant states that do exist, production is well calibrated (for example 98.7% actual against 98.3% predicted at 42 s or later).
 
+## D-024: A finding must survive every check its report ran (2026-11-24)
+
+**Decision:** "Prepare for these" and the matchup edges no longer trust one range at a time. Each check gets a p-value that allows for clustering within a series, and Benjamini-Hochberg (q = 0.10) is applied over all the report's checks (or all of the matchup's). The range must still exclude the league. A single series never counts as beyond noise. The Dry duels card names an agent only if that agent survives the same control across the team's agents.
+
+**Why:** A report runs about 20 checks, so some clear a 90% or 95% range by luck, and the summary picks the most extreme ones. We had called the dry-duel findings real without testing it. Rounds in a series also aren't independent: first-recon timing has a dispersion of 2.4 and plants 1.7, so per-round ranges are too confident.
+
+**Evidence** ([EVAL_FINDINGS.md](EVAL_FINDINGS.md), `python -m scripts.eval_findings`): on 40 reports the first rule gave 93 findings against 65 with every real difference removed, and 82% of no-difference reports still had a finding. The new rule gives 25 against 6, and 12% of no-difference reports have one. On later games, shown findings kept their direction in 13 of 15 cases; that sample is too small to show the new rule beats the old one.
+
+**Cost:** 26 of the 40 reports in the app now have an empty summary (25 in the evaluation, which leaves out predictability). The note says so without claiming the team is average.
+
+**Not changed:** ranges printed on cards are still per-round Wilson ranges, so they're too narrow for clustered measures. The gaps shown are larger than the ones that follow (later gaps averaged about a third), so a finding is a direction, not a forecast.

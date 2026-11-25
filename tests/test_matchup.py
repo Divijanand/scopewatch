@@ -4,7 +4,7 @@ import pytest
 from engine.matchup import stance, read, facing_pairs, head_to_head
 
 
-def _rate(p, lo, hi, n=40, small_sample=False):
+def _rate(p, lo, hi, n=400, small_sample=False):
     return {"p": p, "lo": lo, "hi": hi, "n": n, "small_sample": small_sample}
 
 
@@ -32,7 +32,7 @@ def test_pairs_mirroring_and_plant_reach_direction():
             "league_post_plant_win": {"p": 0.60},
         }},
         "team.openings": {"value": {"first_blood": _rate(0.56, 0.52, 0.60), "league_first_blood": {"p": 0.50}}},
-        "fights.dry_duels": {"value": {"diff": 0.06, "lo": 0.02, "hi": 0.10, "n": 55, "beyond_noise": True}},
+        "fights.dry_duels": {"value": {"diff": 0.06, "lo": 0.02, "hi": 0.10, "n": 55, "beyond_noise": True, "p_value": 0.001}},
         "team.economy": {"breakdown": [
             {"bucket": "scrappy_vs_full", "rate": _rate(0.30, 0.24, 0.36), "league": {"p": 0.22}}
         ]},
@@ -46,7 +46,7 @@ def test_pairs_mirroring_and_plant_reach_direction():
             "league_retake": {"p": 0.50},
         }},
         "team.openings": {"value": {"first_blood": _rate(0.44, 0.40, 0.48), "league_first_blood": {"p": 0.50}}},
-        "fights.dry_duels": {"value": {"diff": -0.01, "lo": -0.05, "hi": 0.03, "n": 40, "beyond_noise": False}},
+        "fights.dry_duels": {"value": {"diff": -0.01, "lo": -0.05, "hi": 0.03, "n": 40, "beyond_noise": False, "p_value": 0.5}},
         "team.economy": {"breakdown": [{"bucket": "full_vs_anti", "rate": _rate(0.70, 0.64, 0.76), "league": {"p": 0.66}}]},
         "summary": [{"id": "a2", "score": 1.0}],
     }
@@ -58,7 +58,7 @@ def test_pairs_mirroring_and_plant_reach_direction():
             "league_post_plant_win": {"p": 0.60},
         }},
         "team.openings": {"value": {"first_blood": _rate(0.50, 0.45, 0.55), "league_first_blood": {"p": 0.50}}},
-        "fights.dry_duels": {"value": {"diff": 0.00, "lo": -0.03, "hi": 0.03, "n": 44, "beyond_noise": False}},
+        "fights.dry_duels": {"value": {"diff": 0.00, "lo": -0.03, "hi": 0.03, "n": 44, "beyond_noise": False, "p_value": 0.5}},
         "team.economy": {"breakdown": [{"bucket": "scrappy_vs_full", "rate": _rate(0.21, 0.17, 0.25), "league": {"p": 0.22}}]},
         "summary": [{"id": "b1", "score": 1.5}],
     }
@@ -70,7 +70,7 @@ def test_pairs_mirroring_and_plant_reach_direction():
             "league_retake": {"p": 0.50},
         }},
         "team.openings": {"value": {"first_blood": _rate(0.50, 0.45, 0.55), "league_first_blood": {"p": 0.50}}},
-        "fights.dry_duels": {"value": {"diff": 0.00, "lo": -0.03, "hi": 0.03, "n": 44, "beyond_noise": False}},
+        "fights.dry_duels": {"value": {"diff": 0.00, "lo": -0.03, "hi": 0.03, "n": 44, "beyond_noise": False, "p_value": 0.5}},
         "team.economy": {"breakdown": [{"bucket": "full_vs_anti", "rate": _rate(0.66, 0.61, 0.71), "league": {"p": 0.66}}]},
         "summary": [{"id": "b2", "score": 1.2}],
     }
@@ -165,7 +165,32 @@ def test_head_to_head_date_filter_applies_to_both_orders():
 
 
 def test_duel_sentence_uses_real_minus_and_no_negative_zero():
-    d = {"fights.dry_duels": {"value": {"diff": -0.0004, "lo": -0.03, "hi": 0.03, "n": 40, "beyond_noise": False}}}
-    a = {"fights.dry_duels": {"value": {"diff": -0.013, "lo": -0.05, "hi": 0.02, "n": 40, "beyond_noise": False}}}
+    d = {"fights.dry_duels": {"value": {"diff": -0.0004, "lo": -0.03, "hi": 0.03, "n": 40, "beyond_noise": False, "p_value": 0.5}}}
+    a = {"fights.dry_duels": {"value": {"diff": -0.013, "lo": -0.05, "hi": 0.02, "n": 40, "beyond_noise": False, "p_value": 0.5}}}
     s = [p for p in facing_pairs("A", "Alpha", "B", "Bravo", a, {}, {}, d) if p["id"] == "dry_duels"][0]["sentence"]
     assert "−1.3" in s and "are 0.0" in s and "-" not in s
+
+
+def test_a_stance_must_survive_every_check_in_the_matchup():
+    # one measure with p of about 0.04 clears a 95% range alone, but not among 8 checks
+    def side(p):
+        return {"team.post_plant": {"value": {"plant_share": _rate(p, 0.51, 0.59), "league_plant_share": {"p": 0.5},
+                                              "post_plant_win": _rate(0.5, 0.45, 0.55), "league_post_plant_win": {"p": 0.5}}},
+                "team.openings": {"value": {"first_blood": _rate(0.5, 0.45, 0.55), "league_first_blood": {"p": 0.5}}}}
+    dfn = {"team.retakes": {"value": {"plants_faced": _rate(0.5, 0.45, 0.55), "league_plants_faced": {"p": 0.5},
+                                      "retake": _rate(0.5, 0.45, 0.55), "league_retake": {"p": 0.5}}}}
+    weak = facing_pairs("A", "Alpha", "B", "Bravo", side(0.553), {}, {}, dfn)[0]
+    strong = facing_pairs("A", "Alpha", "B", "Bravo", side(0.65), {}, {}, dfn)[0]
+    assert stance(_rate(0.553, 0.51, 0.59), {"p": 0.5}) == 1
+    assert weak["read"] == "even" and weak["att"]["stance"] == 0
+    assert strong["read"] == "attacker" and strong["edge"] == "A"
+
+
+def test_head_to_head_end_date_is_exclusive():
+    con = duckdb.connect(":memory:")
+    con.execute("""CREATE TABLE games (series_id VARCHAR, game_id VARCHAR, map VARCHAR, started_at TIMESTAMP,
+                   event VARCHAR, stage VARCHAR, winner_team_id VARCHAR, team1_id VARCHAR, team2_id VARCHAR)""")
+    con.execute("CREATE TABLE team_rounds (game_id VARCHAR, team_id VARCHAR, won BOOLEAN)")
+    con.execute("INSERT INTO games VALUES ('s1','g1','ascent','2026-01-01','E','S','A','A','B'), "
+                "('s2','g2','haven','2026-01-02','E','S','B','B','A')")
+    assert [r["game_id"] for r in head_to_head(con, "A", "B", until="2026-01-02")] == ["g1"]
