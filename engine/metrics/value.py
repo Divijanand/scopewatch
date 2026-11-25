@@ -79,7 +79,7 @@ def get_op_wpa(con: duckdb.DuckDBPyConnection, f: Filters) -> MetricResult:
             "n": n,
             "mean": round(p_mean, 2),
         }
-        if n >= 10:
+        if n >= 10 and len(set(p_series)) > 1:      # one series has no range
             p_lo, p_hi = bootstrap_mean(p_wpas, p_series)
             stat.update({"lo": round(p_lo, 2), "hi": round(p_hi, 2)})
         else:

@@ -256,4 +256,14 @@ For each habit, the team's most common choice is the opponent's best guess, and 
 
 **Cost:** 26 of the 40 reports in the app now have an empty summary (25 in the evaluation, which leaves out predictability). The note says so without claiming the team is average.
 
-**Not changed:** ranges printed on cards are still per-round Wilson ranges, so they're too narrow for clustered measures. The gaps shown are larger than the ones that follow (later gaps averaged about a third), so a finding is a direction, not a forecast.
+**Changed later (D-025):** the cards' ranges now allow for clustering too, and p-values use each rate's own design effect instead of one dispersion per measure. With that, the same evaluation gives 28 findings against 6, 12% of no-difference reports with one, and 15 of 19 findings keeping their direction on later games. **Still true:** the gaps shown are larger than the ones that follow (later gaps averaged about a third), so a finding is a direction, not a forecast.
+
+## D-025: Ranges allow for rounds of one game repeating each other (2026-11-25)
+
+**Decision:** Every team rate is built with `Rate.over(measure, hits, units)`. Its range is the Wilson 95% range on n / design-effect units, where the design effect is 1 + (m - 1) x correlation, m is the size-weighted number of its units per game, and the correlation is measured league-wide per measure (`RHO` in `engine/clustering.py`). k, n and the percentage shown don't change. The p-values behind "Prepare for these" and the matchup use the same design effect, so a card and the summary can't disagree about how sure we are. One series no longer prints a range for ultimates, the Operator's value or one player. Two card sentences that claimed a difference from a ratio ("far more often than the rest of the league") now follow the range.
+
+**Why:** Plan, opponent and day are shared within a game. The worst case is who carries the Operator (correlation 0.95): one game is close to one observation, however many rounds it has.
+
+**Evidence** ([EVAL_RANGES.md](EVAL_RANGES.md), `python -m scripts.eval_ranges`): split a team's games into two random halves and their rates should differ beyond 95% in 5% of cases. With the old ranges it was 19.1% of 105,016 comparisons. With the new ones, and correlations learned from other teams, it's 7.0%; leaving out utility spots, 10.2% became 4.8%. Cards with both sides: 10.4% became 4.0%.
+
+**Limits:** utility spots are still a little narrow (9.3%), because one correlation is used for every spot and agent. Team-wide measures with no correlation of their own use the 75th percentile (0.078). Correlations come from the same games, league-wide. The check shuffles games at random, so the ranges describe the games in scope and don't forecast a new patch or roster.

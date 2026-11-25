@@ -195,6 +195,7 @@ def placements(con, f: Filters, group: str | None = "setup", agent: str | None =
         scope = team_rounds
         items, left_off, unplaced = layer_items(con, f, group=group)
     n = len(scope)
+    family = "util.kit" if agent else "util.placements"      # one agent's own rounds repeat differently from the team's
     if left_off:
         res.unknown.append(Unknown(left_off, "cast position failed the quality policy"))
 
@@ -204,7 +205,7 @@ def placements(con, f: Filters, group: str | None = "setup", agent: str | None =
         per_round = Counter(r[0] for r in rs)
         ts = [r[5] for r in rs if r[5] is not None]
         timing.append(dict(ability=ab, agent=ranked(Counter(r[2] for r in rs), 1)[0][0],
-                           rate=Rate.of(len(per_round), n),
+                           rate=Rate.over(f"{family}.unplaced", per_round, scope),
                            per_round=round(sum(per_round.values()) / len(per_round), 1),
                            median_t=round(float(np.median(ts)), 1) if ts else None))
     res.value["timing"] = sorted(timing, key=lambda d: (-d["rate"].k, d["ability"]))
@@ -227,7 +228,7 @@ def placements(con, f: Filters, group: str | None = "setup", agent: str | None =
                                  ranked(Counter(r[8]["toward"] for r in rs if r[8]["toward"]), 2)])
         rows.append(dict(
             bucket=f"{ab}@{callout}", ability=ab, mode=mode, agent=ranked(Counter(r[2] for r in rs), 1)[0][0],
-            callout=callout, rate=Rate.of(len(rounds), n),
+            callout=callout, rate=Rate.over(f"{family}.spot", rounds, scope),
             players=[dict(name=nm, k=k) for nm, k in ranked(Counter(r[3] for r in rs if r[3]), 2)],
             median_t=round(float(np.median(ts)), 1) if ts else None,
             buy_phase=sum(1 for r in rs if r[8].get("buy")), casts=len(rs),
@@ -242,9 +243,10 @@ def placements(con, f: Filters, group: str | None = "setup", agent: str | None =
         res.breakdown = keep
     else:
         res.breakdown = rows[:TOP]
-    by_ability = Counter({ab: len({it[0] for it in items if it[1] == ab}) for ab in {it[1] for it in items}})
+    ability_rounds = {ab: sorted({it[0] for it in items if it[1] == ab}) for ab in {it[1] for it in items}}
+    by_ability = Counter({ab: len(rks) for ab, rks in ability_rounds.items()})
     res.value.update(group=None if agent else group, agent=agent, rounds=n,
-                     abilities=[dict(ability=a, mode=mode_of(a), rate=Rate.of(k, n)) for a, k in ranked(by_ability)])
+                     abilities=[dict(ability=a, mode=mode_of(a), rate=Rate.over(f"{family}.ability", ability_rounds[a], scope)) for a, _ in ranked(by_ability)])
     if res.breakdown:
         top = res.breakdown[0]
         res.rate = top["rate"]

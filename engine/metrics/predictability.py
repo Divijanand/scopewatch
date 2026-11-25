@@ -141,7 +141,7 @@ def predictability(con, f: Filters) -> MetricResult:
             pct = round(100 * sum(1 for s in other_shares if s < share) / len(other_shares))
             percentiles.append(pct)
         res.breakdown.append(dict(
-            bucket=habit, habit=habit, label=LABELS[habit], choice=choice, rate=Rate.of(k, n),
+            bucket=habit, habit=habit, label=LABELS[habit], choice=choice, rate=Rate.over(f"team.predictability.{habit}", [x for x in mine if x[1] == choice], mine),
             runner_up=[dict(choice=c, k=kk) for c, kk in ranked(Counter(ch for _, ch in mine), 3)[1:]],
             league_median=round(float(np.median(other_shares)), 3) if other_shares else None,
             league_teams=len(other_shares), percentile=pct, small_sample=n < MIN_ROUNDS,

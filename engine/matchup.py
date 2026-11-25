@@ -6,7 +6,7 @@ A matchup runs up to 20 checks, so a stance counts only if it survives false-dis
 from __future__ import annotations
 
 from engine.report import _signed, pct
-from engine.significance import benjamini_hochberg, dispersion, rate_p
+from engine.significance import benjamini_hochberg, rate_p
 
 
 MIN_N = 20
@@ -65,12 +65,12 @@ def _economy_bucket(data: dict, bucket: str):
     return None
 
 
-def _rate_side(test_id, rate, league_rate, higher_is_better=True):
+def _rate_side(rate, league_rate, higher_is_better=True):
     if not rate or not league_rate:
         return _missing_rate()
     st = stance(rate, league_rate, higher_is_better=higher_is_better)
     return dict(p=rate.get("p"), lo=rate.get("lo"), hi=rate.get("hi"), n=rate.get("n"), league=league_rate.get("p"),
-                stance=st, p_value=None if st is None else rate_p(rate, league_rate.get("p"), dispersion(test_id)))
+                stance=st, p_value=None if st is None else rate_p(rate, league_rate.get("p")))
 
 
 def _dry_side(value):
@@ -102,17 +102,17 @@ def _pair(pair_id: str, title: str, attacker_id: str, attacker_name: str, xa: di
     dp = (_metric(yd, "team.retakes") or {}).get("value") or {}
     unit = "rate"
     if pair_id == "plant_reach":
-        att = _rate_side("team.post_plant.plant_share", ap.get("plant_share"), ap.get("league_plant_share"))
-        dfn = _rate_side("team.retakes.plants_faced", dp.get("plants_faced"), dp.get("league_plants_faced"),
+        att = _rate_side(ap.get("plant_share"), ap.get("league_plant_share"))
+        dfn = _rate_side(dp.get("plants_faced"), dp.get("league_plants_faced"),
                          higher_is_better=False)
     elif pair_id == "post_plant":
-        att = _rate_side("team.post_plant.win", ap.get("post_plant_win"), ap.get("league_post_plant_win"))
-        dfn = _rate_side("team.retakes.retake", dp.get("retake"), dp.get("league_retake"))
+        att = _rate_side(ap.get("post_plant_win"), ap.get("league_post_plant_win"))
+        dfn = _rate_side(dp.get("retake"), dp.get("league_retake"))
     elif pair_id == "first_blood":
         ao = (_metric(xa, "team.openings") or {}).get("value") or {}
         do = (_metric(yd, "team.openings") or {}).get("value") or {}
-        att = _rate_side("team.openings.first_blood", ao.get("first_blood"), ao.get("league_first_blood"))
-        dfn = _rate_side("team.openings.first_blood", do.get("first_blood"), do.get("league_first_blood"))
+        att = _rate_side(ao.get("first_blood"), ao.get("league_first_blood"))
+        dfn = _rate_side(do.get("first_blood"), do.get("league_first_blood"))
     elif pair_id == "dry_duels":
         att = _dry_side((_metric(xa, "fights.dry_duels") or {}).get("value"))
         dfn = _dry_side((_metric(yd, "fights.dry_duels") or {}).get("value"))
@@ -120,8 +120,8 @@ def _pair(pair_id: str, title: str, attacker_id: str, attacker_name: str, xa: di
     else:
         ae = _economy_bucket(xa, "scrappy_vs_full") or {}
         de = _economy_bucket(yd, "full_vs_anti") or {}
-        att = _rate_side("team.economy.scrappy_vs_full", ae.get("rate"), ae.get("league"))
-        dfn = _rate_side("team.economy.full_vs_anti", de.get("rate"), de.get("league"))
+        att = _rate_side(ae.get("rate"), ae.get("league"))
+        dfn = _rate_side(de.get("rate"), de.get("league"))
     return dict(id=pair_id, title=title, attacker=attacker_id, defender=defender_id, att=att, dfn=dfn, unit=unit,
                 sentence=_sentence(pair_id, attacker_name, defender_name, att, dfn))
 

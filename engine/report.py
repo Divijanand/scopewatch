@@ -5,7 +5,7 @@ Each template returns every check it ran, with a `p_value` and `stands_out` (the
 whole report's checks then go through false-discovery control (D-024), because some always look unusual by luck."""
 from __future__ import annotations
 
-from engine.significance import benjamini_hochberg, dispersion, rate_p, two_rates_p
+from engine.significance import benjamini_hochberg, rate_p, two_rates_p
 
 NO_FINDINGS_NOTE = ("Nothing here clears our bar for a real difference from the league. They may play like most teams, "
                     "or there may be too few games to tell.")
@@ -43,7 +43,7 @@ def findings_att_executes(r):
         tm, lg = b.get("rate"), b.get("league")
         site = b.get("site", "site")
         fid = f"att.executes.{site}"
-        p = rate_p(tm, (lg or {}).get("p"), dispersion(fid))
+        p = rate_p(tm, (lg or {}).get("p"))
         if p is None:
             continue
         s = vs_league(tm, lg)
@@ -60,7 +60,7 @@ def findings_recon(r):
     out = []
     v = r.get("value", {})
     early = v.get("before_league_median")
-    p = rate_p(early, 0.5, dispersion("util.recon_timing.before"))
+    p = rate_p(early, 0.5)
     if p is not None:
         s = vs_league(early, {"p": 0.5})
         prep = ("Plan for an early dart: their timing is built on it."
@@ -70,7 +70,7 @@ def findings_recon(r):
             f"Their first recon comes before the league's median time in {pct(early['p'])} of rounds (likely {pct(early['lo'])}–{pct(early['hi'])}), against half for the league.",
             prep, early, {"p": 0.5}, s or 0.0, p, s is not None))
     late, on = v.get("late"), v.get("on_time")
-    p = two_rates_p(late, on, dispersion("util.recon_timing.late"), "lower")   # only "late is worse" has a prepare line
+    p = two_rates_p(late, on, "lower")   # only "late is worse" has a prepare line
     if p is not None:
         hw = max((((late["hi"] - late["lo"]) / 2) + ((on["hi"] - on["lo"]) / 2)) / 2, 1e-6)
         out.append(_finding(
@@ -115,7 +115,7 @@ def findings_predictability(r):
         fid = f"team.predictability.{b['habit']}"
         if b.get("small_sample") or b.get("percentile") is None:   # None when the league has too few teams
             continue
-        p = rate_p(rt, lg["p"], dispersion(fid), "higher")
+        p = rate_p(rt, lg["p"], "higher")
         if p is None:
             continue
         s = vs_league(rt, lg)
@@ -131,7 +131,7 @@ def _compare(fid, metric, title, tm, lg, headline, higher, lower):
     """One team-vs-league rate check. `headline(X, lo, hi, Y)` gets formatted percentages; `higher` and `lower` are
     the prepare lines for each direction. With only one, the check is one-sided in that direction, fixed in advance."""
     direction = "both" if higher and lower else "higher" if higher else "lower"
-    p = rate_p(tm, (lg or {}).get("p"), dispersion(fid), direction)
+    p = rate_p(tm, (lg or {}).get("p"), direction)
     if p is None:
         return []
     s = vs_league(tm, lg)

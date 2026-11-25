@@ -42,14 +42,14 @@ def possession_full_buy(con, f: Filters) -> MetricResult:
     sup = [r[0] for r in elig if r[3] > 0]
     con_ = [r[0] for r in elig if r[3] == 0]
     maps, series = _scope(con, f)
-    res = MetricResult(POSSESSION, f, rate=Rate.of(len(sup), len(elig)), maps=maps, series=series,
+    res = MetricResult(POSSESSION, f, rate=Rate.over("op.possession", sup, elig), maps=maps, series=series,
                        supporting=sup, contrary=con_)
     if unknown:
         res.unknown.append(Unknown(len(unknown), "no buy-phase-end inventory snapshot"))
     by_econ = {}
     for e in ("full", "half", "eco"):
         rr = [r for r in rows if r[1] and r[2] == e]
-        by_econ[e] = Rate.of(sum(1 for r in rr if r[3] > 0), len(rr))
+        by_econ[e] = Rate.over("op.possession", [r for r in rr if r[3] > 0], rr)
     res.breakdown = [dict(economy=e, rate=r) for e, r in by_econ.items()]
     return res
 
@@ -69,7 +69,6 @@ HOLDERS = MetricDef(
 def holder_share(con, f: Filters) -> MetricResult:
     w, p = f.where("t")
     op_rounds = con.execute(f"SELECT round_key FROM team_rounds t WHERE {w} AND n_op > 0", p).fetchall()
-    n = len(op_rounds)
     pw, pp = f.where("p")
     holders = con.execute(f"""
         SELECT player_id, any_value(player_name), count(*) k, list(agent), list(DISTINCT agent ORDER BY agent),
@@ -78,10 +77,10 @@ def holder_share(con, f: Filters) -> MetricResult:
     maps, series = _scope(con, f, "AND n_op > 0")
     res = MetricResult(HOLDERS, f, maps=maps, series=series)
     res.breakdown = [dict(player_id=pid, name=name, agent=ranked(Counter(agent_list), 1)[0][0], agents=agents,
-                          rate=Rate.of(k, n))
-                     for pid, name, k, agent_list, agents, _ in holders]
+                          rate=Rate.over("op.holder", rks, op_rounds))
+                     for pid, name, _, agent_list, agents, rks in holders]
     if holders:
-        res.rate = Rate.of(holders[0][2], n)
+        res.rate = res.breakdown[0]["rate"]
         res.supporting = list(holders[0][5])
         res.contrary = sorted({r[0] for r in op_rounds} - set(holders[0][5]))
     # possession shift: rounds where the holder isn't that map's main holder
@@ -89,8 +88,8 @@ def holder_share(con, f: Filters) -> MetricResult:
         WITH r AS (SELECT game_id, round_key, unnest(op_player_ids) pid FROM team_rounds t WHERE {w} AND n_op > 0),
              c AS (SELECT game_id, pid, count(*) n FROM r GROUP BY 1, 2),
              m AS (SELECT game_id, pid AS main FROM (SELECT *, row_number() OVER (PARTITION BY game_id ORDER BY n DESC, pid) rn FROM c) WHERE rn = 1)
-        SELECT count(*) FILTER (WHERE pid <> main), count(*) FROM r JOIN m USING (game_id)""", p).fetchone()
-    res.value["possession_shift"] = Rate.of(shift[0], shift[1])
+        SELECT round_key, pid <> main FROM r JOIN m USING (game_id)""", p).fetchall()
+    res.value["possession_shift"] = Rate.over("op.possession_shift", [r for r in shift if r[1]], shift)
     return res
 
 
@@ -133,10 +132,10 @@ def kill_timing(con, f: Filters) -> MetricResult:
     res = MetricResult(TIMING, f)
     for name, lo, hi in BUCKETS:
         kb = [k for k in kills if lo <= k[4] < hi]
-        res.breakdown.append(dict(bucket=name, rate=Rate.of(len(kb), n), round_keys=sorted({k[0] for k in kb})))
+        res.breakdown.append(dict(bucket=name, rate=Rate.over("op.kill_timing", kb, kills), round_keys=sorted({k[0] for k in kb})))
     post = [k for k in kills if k[6] == "post_plant"]
     res.value = dict(median_t=float(np.median([k[4] for k in kills])) if kills else None,
-                     post_plant=Rate.of(len(post), n))
+                     post_plant=Rate.over("op.kill_timing.post_plant", post, kills))
     top = max(res.breakdown, key=lambda b: b["rate"].k) if n else None
     if top:
         res.rate = top["rate"]
@@ -170,9 +169,9 @@ def opening(con, f: Filters) -> MetricResult:
     n = len(rows)
     won = [r[0] for r in rows if r[4] and r[3] in ("operator", "outlaw", "tour-de-force")]
     lost = [r[0] for r in rows if r[5]]
-    res = MetricResult(OPENING, f, rate=Rate.of(len(won), n), supporting=won,
+    res = MetricResult(OPENING, f, rate=Rate.over("op.opening.won", won, rows), supporting=won,
                        contrary=[r[0] for r in rows if r[0] not in set(won)])
-    res.value = dict(holder_died_first=Rate.of(len(lost), n))
+    res.value = dict(holder_died_first=Rate.over("op.opening.lost", lost, rows))
     res.maps = len({r[0].split(":")[0] for r in rows})
     return res
 
@@ -195,9 +194,9 @@ def win_association(con, f: Filters) -> MetricResult:
                            WHERE {w} AND inventory_known AND economy = 'full' AND won IS NOT NULL""", p).fetchall()
     with_ = [r for r in rows if r[1]]
     without = [r for r in rows if not r[1]]
-    res = MetricResult(WIN, f, rate=Rate.of(sum(r[2] for r in with_), len(with_)),
+    res = MetricResult(WIN, f, rate=Rate.over("op.win.with", [r for r in with_ if r[2]], with_),
                        supporting=[r[0] for r in with_ if r[2]], contrary=[r[0] for r in with_ if not r[2]])
-    res.value = dict(without=Rate.of(sum(r[2] for r in without), len(without)))
+    res.value = dict(without=Rate.over("op.win.without", [r for r in without if r[2]], without))
     res.maps, res.series = _scope(con, f, "AND inventory_known AND economy = 'full'")
     return res
 

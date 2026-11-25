@@ -12,6 +12,8 @@ import math
 import numpy as np
 from dataclasses import asdict, dataclass, field
 
+from engine import clustering
+
 Z95 = 1.96
 SMALL_SAMPLE = 10
 
@@ -78,17 +80,28 @@ class Rate:
     lo: float | None = None
     hi: float | None = None
     small_sample: bool = False
+    deff: float = 1.0           # design effect: the range is what n / deff independent units would give
 
     @classmethod
-    def of(cls, k: int, n: int) -> "Rate":
+    def of(cls, k: int, n: int, deff: float = 1.0) -> "Rate":
+        """Wilson 95% range on n / deff units. Team rates use `over`, which knows how clustered they are."""
         if n == 0:
             return cls(k=0, n=0, small_sample=True)
         p = k / n
-        d = 1 + Z95 ** 2 / n
-        c = (p + Z95 ** 2 / (2 * n)) / d
-        h = Z95 * math.sqrt(p * (1 - p) / n + Z95 ** 2 / (4 * n * n)) / d
+        m = n / deff
+        d = 1 + Z95 ** 2 / m
+        c = (p + Z95 ** 2 / (2 * m)) / d
+        h = Z95 * math.sqrt(p * (1 - p) / m + Z95 ** 2 / (4 * m * m)) / d
         return cls(k=k, n=n, p=round(p, 4), lo=round(max(0.0, c - h), 4), hi=round(min(1.0, c + h), 4),
-                   small_sample=n < SMALL_SAMPLE)
+                   small_sample=n < SMALL_SAMPLE, deff=round(deff, 3))
+
+    @classmethod
+    def over(cls, measure: str, hits, units) -> "Rate":
+        """hits out of units, with the range widened for rounds of one game repeating each other (D-025).
+        hits and units hold round keys, or rows whose first column is one; hits are a subset of units."""
+        hits, units = list(hits), list(units)
+        clustering.record(measure, hits, units)
+        return cls.of(len(hits), len(units), clustering.design_effect(measure, units))
 
 
 @dataclass

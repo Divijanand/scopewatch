@@ -71,14 +71,14 @@ def gamble(con, f: Filters) -> MetricResult:
         "lost": [r for r in rows if r[4] is not None and r[5] == 0],
     }
     labels = {"kept": "Survived with it", "traded": "Got a kill, then died", "lost": "Died without an Operator kill"}
-    res = MetricResult(GAMBLE, f, rate=Rate.of(len(groups["lost"]), n))
+    res = MetricResult(GAMBLE, f, rate=Rate.over("op.gamble.outcome", groups["lost"], rows))
     for key, rs in groups.items():
-        res.breakdown.append(dict(bucket=key, label=labels[key], rate=Rate.of(len(rs), n),
-                                  won=Rate.of(sum(1 for r in rs if r[7]), len(rs)),
+        res.breakdown.append(dict(bucket=key, label=labels[key], rate=Rate.over("op.gamble.outcome", rs, rows),
+                                  won=Rate.over("op.gamble.won", [r for r in rs if r[7]], rs),
                                   round_keys=_rounds_of(rs)))
     stolen = [r for r in rows if r[6]]
-    res.breakdown.append(dict(bucket="stolen", label="Enemy fired it after", rate=Rate.of(len(stolen), n),
-                              won=Rate.of(sum(1 for r in stolen if r[7]), len(stolen)),
+    res.breakdown.append(dict(bucket="stolen", label="Enemy fired it after", rate=Rate.over("op.gamble.stolen", stolen, rows),
+                              won=Rate.over("op.gamble.won", [r for r in stolen if r[7]], stolen),
                               round_keys=_rounds_of(stolen)))
     kills = [r[5] for r in rows]
     league = None
@@ -91,7 +91,7 @@ def gamble(con, f: Filters) -> MetricResult:
         lr = _gamble_rows(con, " AND ".join(lw), lp)
         league = Rate.of(sum(1 for r in lr if r[4] is not None and r[5] == 0), len(lr))
     res.value = dict(league_lost=league,kills_per_round=round(sum(kills) / n, 2) if n else None,
-                     multi_kill=Rate.of(sum(1 for k in kills if k >= 2), n),
+                     multi_kill=Rate.over("op.gamble.multi_kill", [r for r in rows if r[5] >= 2], rows),
                      by_player=[dict(name=nm, rounds=c) for nm, c in ranked(Counter(r[2] for r in rows), 3)])
     res.supporting = groups["lost"] and _rounds_of(groups["lost"]) or []
     res.contrary = sorted(set(_rounds_of(rows)) - set(res.supporting))
@@ -134,23 +134,23 @@ def escapes(con, f: Filters) -> MetricResult:
     punished = [r for r in rows if r[5]]
     moved = [r for r in rows if r[4]]
     still = [r for r in rows if not r[4]]
-    res = MetricResult(ESCAPES, f, rate=Rate.of(len(punished), n))
+    res = MetricResult(ESCAPES, f, rate=Rate.over("op.escapes.punished", punished, rows))
     res.breakdown = [
-        dict(bucket="moved", label="Used a movement ability", rate=Rate.of(len(moved), n),
-             punished=Rate.of(sum(1 for r in moved if r[5]), len(moved)),
+        dict(bucket="moved", label="Used a movement ability", rate=Rate.over("op.escapes.moved", moved, rows),
+             punished=Rate.over("op.escapes.punished", [r for r in moved if r[5]], moved),
              abilities=[dict(ability=a, k=c) for a, c in ranked(Counter(r[4] for r in moved), 3)],
              round_keys=_rounds_of(moved)),
-        dict(bucket="stayed", label="No movement ability", rate=Rate.of(len(still), n),
-             punished=Rate.of(sum(1 for r in still if r[5]), len(still)), abilities=[],
+        dict(bucket="stayed", label="No movement ability", rate=Rate.over("op.escapes.moved", still, rows),
+             punished=Rate.over("op.escapes.punished", [r for r in still if r[5]], still), abilities=[],
              round_keys=_rounds_of(still)),
-        dict(bucket="punished", label="Died within 5 s", rate=Rate.of(len(punished), n),
+        dict(bucket="punished", label="Died within 5 s", rate=Rate.over("op.escapes.punished", punished, rows),
              round_keys=_rounds_of(punished)),
     ]
     by_agent = {}
     for r in rows:
         by_agent.setdefault(r[2] or "unknown", []).append(r)
-    res.value = dict(by_agent=[dict(agent=a, kills=len(rs), punished=Rate.of(sum(1 for r in rs if r[5]), len(rs)),
-                                    moved=Rate.of(sum(1 for r in rs if r[4]), len(rs)))
+    res.value = dict(by_agent=[dict(agent=a, kills=len(rs), punished=Rate.over("op.escapes.punished", [r for r in rs if r[5]], rs),
+                                    moved=Rate.over("op.escapes.moved", [r for r in rs if r[4]], rs))
                                for a, rs in sorted(by_agent.items(), key=lambda kv: (-len(kv[1]), str(kv[0])))])
     res.supporting = _rounds_of(punished)
     res.contrary = sorted(set(_rounds_of(rows)) - set(res.supporting))
@@ -215,14 +215,14 @@ def how_it_dies(con, f: Filters) -> MetricResult:
     ulted = [r for r in rows if r[5]]
     duel = [r for r in rows if r not in blinded and r not in smoked and r not in swarmed and r not in ulted]
     util = Counter(a for r in rows for a in (r[3] or []) if a in FLASH | STUN | SMOKE)
-    res = MetricResult(BROKEN, f, rate=Rate.of(len(blinded), n))
+    res = MetricResult(BROKEN, f, rate=Rate.over("op.broken.how", blinded, rows))
     res.breakdown = [
-        dict(bucket="blinded", label="Flash or stun nearby", rate=Rate.of(len(blinded), n), round_keys=_rounds_of(blinded)),
-        dict(bucket="smoked", label="Smoke nearby", rate=Rate.of(len(smoked), n), round_keys=_rounds_of(smoked)),
-        dict(bucket="swarmed", label="Two or more enemies at once", rate=Rate.of(len(swarmed), n),
+        dict(bucket="blinded", label="Flash or stun nearby", rate=Rate.over("op.broken.how", blinded, rows), round_keys=_rounds_of(blinded)),
+        dict(bucket="smoked", label="Smoke nearby", rate=Rate.over("op.broken.how", smoked, rows), round_keys=_rounds_of(smoked)),
+        dict(bucket="swarmed", label="Two or more enemies at once", rate=Rate.over("op.broken.how", swarmed, rows),
              round_keys=_rounds_of(swarmed)),
-        dict(bucket="ulted", label="During an enemy ult", rate=Rate.of(len(ulted), n), round_keys=_rounds_of(ulted)),
-        dict(bucket="duel", label="None of these: a straight duel", rate=Rate.of(len(duel), n),
+        dict(bucket="ulted", label="During an enemy ult", rate=Rate.over("op.broken.how", ulted, rows), round_keys=_rounds_of(ulted)),
+        dict(bucket="duel", label="None of these: a straight duel", rate=Rate.over("op.broken.how", duel, rows),
              round_keys=_rounds_of(duel)),
     ]
     res.value = dict(top_utility=[dict(ability=a, k=c) for a, c in ranked(util, 4)],

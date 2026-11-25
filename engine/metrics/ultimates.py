@@ -153,16 +153,16 @@ def ult_usage(con, f: Filters) -> MetricResult:
     for ab, items in sorted(by.items(), key=lambda kv: (-len({x[0][0] for x in kv[1]}), kv[0])):
         agent = ranked(Counter(x[0][5] for x in items), 1)[0][0]
         rounds = sorted({x[0][0] for x in items})
-        n = len(agent_rounds.get(agent, set()) | set(rounds))
+        fielded = agent_rounds.get(agent, set()) | set(rounds)
         swings = [x[1][2] for x in items if x[1][2] is not None]
         series = [x[0][1] for x in items if x[1][2] is not None]
         lo = hi = None
-        if len(swings) >= MIN_BOOT:
+        if len(swings) >= MIN_BOOT and len(set(series)) > 1:      # one series has no range
             lo, hi = bootstrap_mean(swings, series)
         lg = league.get(ab, [])
-        won_with = sum(1 for r in rounds if any(x[0][12] for x in items if x[0][0] == r))
+        won_with = [r for r in rounds if any(x[0][12] for x in items if x[0][0] == r)]
         res.breakdown.append(dict(
-            bucket=ab, ability=ab, agent=agent, rate=Rate.of(len(rounds), n), uses=len(items),
+            bucket=ab, ability=ab, agent=agent, rate=Rate.over("util.ults.used", rounds, fielded), uses=len(items),
             players=[dict(name=nm, k=k) for nm, k in ranked(Counter(x[0][6] for x in items if x[0][6]), 2)],
             median_t=round(float(np.median([x[0][8] for x in items if x[0][8] is not None])), 1),
             post_plant=sum(1 for x in items if x[0][9] == "post_plant"),
@@ -170,7 +170,7 @@ def ult_usage(con, f: Filters) -> MetricResult:
             swing=round(float(np.mean(swings)), 2) if swings else None,
             swing_lo=round(lo, 2) if lo is not None else None, swing_hi=round(hi, 2) if hi is not None else None,
             league_swing=round(float(np.mean(lg)), 2) if lg else None, league_uses=len(lg),
-            won=Rate.of(won_with, len(rounds)),
+            won=Rate.over("util.ults.won", won_with, rounds),
             seen_only_on_hit=ab in WEAPON_ULTS,
             round_keys=rounds,
         ))

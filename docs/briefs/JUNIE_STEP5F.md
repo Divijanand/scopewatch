@@ -10,7 +10,7 @@ Our cards grew out of the Operator. Pro play is mostly rifles, and rounds swing 
 - every ability and ultimate cast with time, phase and caster position;
 - every plant position (`objectives.x`, `y`).
 
-Everything here follows our pattern: a team against the league, Wilson ranges, n shown, "Show the rounds", association not cause.
+Everything here follows our pattern: a team against the league, `Rate.over(measure, hits, units)` for every team rate (never `Rate.of`, which is for league rates), n shown, "Show the rounds", association not cause.
 
 ## 1. Arsenal (`engine/metrics/guns.py`, metric `guns.profile`)
 - **Rifle mix:** among the team's player-rounds on a full buy (`player_rounds.economy = 'full'`), the share holding a Vandal, Phantom, Operator, Outlaw, Odin or other primary, from `items`. Compare with the league on the map and side. Per player, their usual primary.
@@ -51,7 +51,7 @@ Everything here follows our pattern: a team against the league, Wilson ranges, n
 ## 4b. What their damaging utility does (`util.damage`)
 Damaging abilities are those with `engagements.kind = 'damage'` and a weapon not in `GUNS` (for example `snake-bite`, `nanoswarm`, `incendiary`, `hot-hands`, `paint-shells`, `guided-salvo`, `shock-bolt`, `aftershock`). The feed records a hit only when it touches someone, so utility that stalls by keeping people away isn't seen. Say so in the caveats.
 - **Utility damage and kills per round:** the team's ability damage per round and ability kills per round, by ability (the top 5 with n), against the league's for the same abilities on the map and side. Compare only abilities the team fielded (`casts.agent` in their comp). Per-round means use series-bootstrap ranges (`bootstrap_mean`, D-020).
-- **Softened kills:** the share of the team's gun kills where the victim took ability damage from the team in the 5 s before ("nade, then swing"), with `Rate.of` against the league's.
+- **Softened kills:** the share of the team's gun kills where the victim took ability damage from the team in the 5 s before ("nade, then swing"), with `Rate.over` against the league's.
 - **Molly denial on the spike:** after the plant, in rounds the team planted, the share of rounds where their ability damage hit a defender within 500 units of the plant position (that defender was most likely on the spike). Give the post-plant win rate in those rounds against the others, within the same numbers-at-the-plant bucket, against the league. Use the same caveat as stalls: association.
 - One finding template each in `engine/report.py`. Example prepare line (format only): "Their utility kills: don't stand in lineups on retakes."
 - Tests in `tests/test_post_plant_util.py`:
@@ -65,7 +65,7 @@ Damaging abilities are those with `engagements.kind = 'damage'` and a weapon not
 
 ## 6. UI and the summary
 - A **Guns** section on the Report tab (step 5d) with the Arsenal, Eco and Close-range cards. The post-plant card goes in Attack (stall) and Defence (retake ults).
-- One finding template per new metric in `engine/report.py`, with a `prepare` line. Since D-024 a template returns **every check it ran**, not only the ones that stand out: use `_compare(...)` for rates (it sets `p_value` and `stands_out`), and for means put `p_value` from `engine.significance.mean_p` in the metric. Give each new test id a value in `DISPERSION` only if `scripts/eval_findings.py` measures it; otherwise the worst case applies. Keep checks few: each one raises the bar for the rest. Example (format only): "Expect a Viper ult on the spike: they use one in 41% of post-plants (league 12%)."
+- One finding template per new metric in `engine/report.py`, with a `prepare` line. Since D-024 a template returns **every check it ran**, not only the ones that stand out: use `_compare(...)` for rates (it sets `p_value` and `stands_out`), and for means put `p_value` from `engine.significance.mean_p` in the metric. Give every new rate its own measure name (`metric.id.what`). It uses the default correlation until `scripts/eval_ranges.py` is rerun and its value is copied into `RHO` in `engine/clustering.py`; say in the report that it's unmeasured. Keep checks few: each one raises the bar for the rest. Example (format only): "Expect a Viper ult on the spike: they use one in 41% of post-plants (league 12%)."
 
 ## Tests (`tests/test_guns.py`, `tests/test_post_plant_util.py`, synthetic)
 - `general` hits don't count toward headshot rates. A single-hit kill needs exactly one hit from the killer on that victim within 3 s.

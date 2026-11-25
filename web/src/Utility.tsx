@@ -323,7 +323,7 @@ export function UtilityFindings({ layer, side, def, ultDef, focus, onFocus, onEv
               {' '}in <b>{top.rate.k} of {top.rate.n}</b> {sideWord} rounds{topWhen && `, ${topWhen}`}.
             </p>
             <span className={top.rate.small_sample ? 'evidence thin' : 'evidence'}>
-              {top.rate.k} of {top.rate.n} rounds ({pct(top.rate)}){top.mode === 'landing' && ', counting only uses that hit an enemy'}
+              {top.rate.k} of {top.rate.n} rounds ({pct(top.rate)}{top.rate.lo != null && top.rate.hi != null && `, likely ${Math.round(top.rate.lo * 100)}–${Math.round(top.rate.hi * 100)}%`}){top.mode === 'landing' && ', counting only uses that hit an enemy'}
             </span>
             <SpotList rows={rows} focus={focus} onFocus={onFocus} />
             <p className="hint">Click a row to show only those on the map; click again to show all.</p>

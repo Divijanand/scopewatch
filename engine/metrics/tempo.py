@@ -137,10 +137,11 @@ def recon_timing(con, f: Filters) -> MetricResult:
     res.value = dict(
         n=n,
         first_recon=_med_iqr(first_recon),
-        no_recon=Rate.of(sum(1 for r in rows if r[3] is None), n),
+        no_recon=Rate.over("util.recon_timing.none", [r for r in rows if r[3] is None], rows),
         before_league_median=(
-            Rate.of(sum(1 for r in rows if r[3] is not None and league["median"] and float(r[3]) < float(league["median"]["median"])),
-                    sum(1 for r in rows if r[3] is not None))
+            Rate.over("util.recon_timing.before",
+                      [r for r in rows if r[3] is not None and float(r[3]) < float(league["median"]["median"])],
+                      [r for r in rows if r[3] is not None])
             if league["median"] else None
         ),
         first_recon_agent=[dict(agent=a, n=k) for a, k in ranked(by_agent)],
@@ -151,8 +152,8 @@ def recon_timing(con, f: Filters) -> MetricResult:
                    if first_recon and league["median"] else None),
         league_n=league["n"],
         split_at=round(float(split_at), 1) if split_at is not None else None,
-        on_time=Rate.of(sum(1 for r in on_time if r[2]), len(on_time)) if split_at is not None else None,
-        late=Rate.of(sum(1 for r in late if r[2]), len(late)) if split_at is not None else None,
+        on_time=Rate.over("util.recon_timing.won", [r for r in on_time if r[2]], on_time) if split_at is not None else None,
+        late=Rate.over("util.recon_timing.won", [r for r in late if r[2]], late) if split_at is not None else None,
         min_league=MIN_LEAGUE,
     )
     res.supporting = sorted(r[0] for r in late if not r[2])

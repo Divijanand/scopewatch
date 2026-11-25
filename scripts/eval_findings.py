@@ -2,9 +2,8 @@
 
     python -m scripts.eval_findings
 
-1. Dispersion: how clustered each measure is within a series (feeds engine/significance.py).
-2. Chance: the same reports with every real difference removed. Anything found there is false by construction.
-3. Replication: findings from a team's games before a cut date, checked against its games after it.
+1. Chance: the same reports with every real difference removed. Anything found there is false by construction.
+2. Replication: findings from a team's games before a cut date, checked against its games after it.
 """
 from __future__ import annotations
 
@@ -22,67 +21,13 @@ from engine import report
 from engine.config import DB_PATH, ROOT
 from engine.metrics import REGISTRY, Filters
 from engine.metrics import duels as D
-from engine.metrics import executes as ex
-from engine.metrics import fundamentals as fm
-from engine.metrics import tempo
 from engine.metrics.core import Rate
-from engine.significance import Q, dispersion
+from engine.significance import Q
 
 N_TEAM_MAPS = 20        # the biggest team-maps, both sides
 CHANCE_REPS = 20
 CUT_MIN_ROUNDS = 60     # rounds needed on each side of the cut date
 SKIP = ("team.predictability",)   # its choice can differ between halves, and its null isn't simulated
-
-
-def measure_dispersion(con):
-    acc = collections.defaultdict(lambda: [0.0, 0, 0])
-
-    def add(name, items):
-        by = collections.defaultdict(lambda: [0, 0])
-        for series, y in items:
-            by[series][0] += bool(y)
-            by[series][1] += 1
-        n, k = sum(b[1] for b in by.values()), sum(b[0] for b in by.values())
-        if len(by) < 5 or k in (0, n):
-            return
-        p = k / n
-        acc[name][0] += sum((a - b * p) ** 2 / (b * p * (1 - p)) for a, b in by.values())
-        acc[name][1] += len(by) - 1
-        acc[name][2] += 1
-
-    combos = con.execute("SELECT team_id, map, side FROM team_rounds GROUP BY ALL "
-                         "HAVING count(DISTINCT series_id) >= 5 ORDER BY ALL").fetchall()
-    for t, m, side in combos:
-        f = Filters(team_id=t, map=m, side=side)
-        rows = fm._team_rounds(con, f)
-        fb = fm._first_blood(con, [r[0] for r in rows])
-        used = [r for r in rows if r[0] in fb]
-        add("team.openings.first_blood", [(r[1], fb[r[0]]["att_team"] == t) for r in used])
-        add("team.openings.after_first_blood", [(r[1], r[5]) for r in used if fb[r[0]]["att_team"] == t])
-        add("team.openings.after_first_death", [(r[1], r[5]) for r in used if fb[r[0]]["vic_team"] == t])
-        if side == "attacker":
-            add("team.post_plant.plant_share", [(r[1], r[9]) for r in rows])
-            add("team.post_plant.win", [(r[1], r[5]) for r in rows if r[9]])
-            add("team.post_plant.pre_plant_losses", [(r[1], not r[9]) for r in rows if not r[5]])
-            w, p = f.where("t")
-            rr = ex._rounds(con, w, p)
-            sites = ex.plant_sites(m, [r[5] if r[5] is not None else np.nan for r in rr],
-                                   [r[6] if r[6] is not None else np.nan for r in rr])
-            for s in {x for x in sites if x}:
-                add("att.executes", [(r[0].split(":")[0], y == s) for r, y in zip(rr, sites)])
-        else:
-            add("team.retakes.plants_faced", [(r[1], r[9]) for r in rows])
-            add("team.retakes.retake", [(r[1], r[5]) for r in rows if r[9]])
-        buys = [r for r in rows if not fm._is_pistol(r[3]) and r[7] and r[13]]
-        for key, own, opp in fm.ECO_BUCKETS:
-            add(f"team.economy.{key}", [(r[1], r[5]) for r in buys if r[7] in fm.OWN[own] and r[13] in opp])
-        tr = tempo._team_rounds(con, f)
-        lg = tempo._league_baseline(con, m, side, None, None)
-        if lg["median"]:
-            add("util.recon_timing.before", [(r[7], float(r[3]) < lg["median"]["median"]) for r in tr if r[3] is not None])
-        if lg["p75"] is not None:
-            add("util.recon_timing.late", [(r[7], r[2]) for r in tr if r[3] is None or float(r[3]) > lg["p75"]])
-    return {k: (c / d, n) for k, (c, d, n) in acc.items()}
 
 
 def run_metrics(con, team, mp, side, since=None, until=None, skip=()):
@@ -103,20 +48,13 @@ def duel_result(g, rng=None):
 
 def null_results(res, rng):
     """Every rate redrawn at the league's rate, with the measured clustering; every mean recentred on the league's."""
-    def draw(r, p, fid):
+    def draw(r, p):
         if not r or not r.get("n") or p is None:
             return r
-        n = r["n"]
-        eff = max(1, round(n / dispersion(fid)))
-        return asdict(Rate.of(int(round(rng.binomial(eff, p) / eff * n)), n))
+        n, deff = r["n"], r["deff"]
+        eff = max(1, round(n / deff))
+        return asdict(Rate.of(int(round(rng.binomial(eff, p) / eff * n)), n, deff))
 
-    names = {("team.retakes", "retake"): "team.retakes.retake", ("team.retakes", "plants_faced"): "team.retakes.plants_faced",
-             ("team.post_plant", "post_plant_win"): "team.post_plant.win",
-             ("team.post_plant", "pre_plant_losses"): "team.post_plant.pre_plant_losses",
-             ("team.economy", "pistol"): "team.economy.pistol", ("team.economy", "bonus"): "team.economy.bonus",
-             ("team.openings", "first_blood"): "team.openings.first_blood",
-             ("team.openings", "win_after_first_blood"): "team.openings.after_first_blood",
-             ("team.openings", "win_after_first_death"): "team.openings.after_first_death"}
     out = {}
     for mid, r in res.items():
         if mid in SKIP or mid == "fights.dry_duels":
@@ -125,12 +63,12 @@ def null_results(res, rng):
         for k in list(v):
             lg = v.get("league_" + k)
             if isinstance(v[k], dict) and isinstance(lg, dict):
-                v[k] = draw(v[k], lg.get("p"), names.get((mid, k), f"{mid}.{k}"))
+                v[k] = draw(v[k], lg.get("p"))
         if isinstance(v.get("before_league_median"), dict):
-            v["before_league_median"] = draw(v["before_league_median"], 0.5, "util.recon_timing.before")
+            v["before_league_median"] = draw(v["before_league_median"], 0.5)
         if isinstance(v.get("late"), dict) and isinstance(v.get("on_time"), dict) and v["late"]["n"] + v["on_time"]["n"]:
             p = (v["late"]["k"] + v["on_time"]["k"]) / (v["late"]["n"] + v["on_time"]["n"])
-            v["late"], v["on_time"] = (draw(v[x], p, "util.recon_timing.late") for x in ("late", "on_time"))
+            v["late"], v["on_time"] = (draw(v[x], p) for x in ("late", "on_time"))
         if mid == "op.wpa" and v.get("p_value") is not None:
             # redraw the mean around the league's, keeping the range's width; p from a uniform draw is exact under the null
             u = float(rng.uniform())
@@ -140,8 +78,7 @@ def null_results(res, rng):
             v["mean"], v["lo"], v["hi"] = c, c - half, c + half
         for b in br:
             if isinstance(b.get("rate"), dict) and isinstance(b.get("league"), dict):
-                fid = f"att.executes.{b.get('site')}" if mid == "att.executes" else f"{mid}.{b.get('bucket')}"
-                b["rate"] = draw(b["rate"], b["league"].get("p"), fid)
+                b["rate"] = draw(b["rate"], b["league"].get("p"))
         out[mid] = dict(value=v, breakdown=br)
     return out
 
@@ -216,7 +153,6 @@ def main():
     con = duckdb.connect(str(DB_PATH), read_only=True)
     path = Path(D.FIGHTS_PARQUET)
     df, rates = D._load(str(path), path.stat().st_mtime)
-    disp = measure_dispersion(con)
     obs, null, bm = chance(con, df, rates)
     cut, n_combos, rep, per = replication(con, df, rates)
     con.close()
@@ -229,13 +165,7 @@ def main():
     lines = [
         "# Are the findings real?", "",
         f"Run {datetime.now().isoformat(timespec='seconds')}. League-level only. Method: D-024, `engine/significance.py`.", "",
-        "## 1. Rounds in a series aren't independent", "",
-        "Pearson dispersion across series within one team, map and side: 1 means independent rounds. Ranges and tests that "
-        "treat rounds as independent are too confident wherever it's above 1.", "",
-        "| Measure | Dispersion | In the code | Team-map-sides |", "|---|---|---|---|",
-        *[f"| `{m}` | {v:.2f} | {dispersion(m + '.A' if m == 'att.executes' else m):.2f} | {n} |"
-          for m, (v, n) in sorted(disp.items(), key=lambda kv: -kv[1][0])], "",
-        "## 2. How many findings chance alone gives", "",
+        "## 1. How many findings chance alone gives", "",
         f"The {N_TEAM_MAPS} biggest team-maps on both sides ({obs['reports']} reports, {obs['checks']} checks), against the "
         f"same reports with every real difference removed ({CHANCE_REPS} draws each): rates redrawn at the league's rate with "
         "the measured clustering, dry-duel results sign-flipped per series. Predictability is left out (its null isn't "
@@ -249,7 +179,7 @@ def main():
         "| Metric | Old: real | Old: chance | New: real | New: chance |", "|---|---|---|---|---|",
         *[f"| `{m}` | {bm['old'][m]} | {bm['null_old'][m] / k:.1f} | {bm['new'][m]} | {bm['null_new'][m] / k:.1f} |"
           for m in report.TEMPLATES if m not in SKIP], "",
-        "## 3. Do findings hold in later games?", "",
+        "## 2. Do findings hold in later games?", "",
         f"Checks on each team-map-side's games before {cut} and after it ({n_combos} with at least {CUT_MIN_ROUNDS} rounds "
         "each side). A finding holds when the later games differ from the league in the same direction. Rosters, agents and "
         "patches change in between, so this asks for more than statistical significance. A pure coin flip would be 50%.", "",
@@ -265,12 +195,12 @@ def main():
         "- **Direction, not size.** The gaps that get picked are larger than the ones that follow (selection, plus real "
         "change between the halves). Read a finding as 'more than most' or 'less than most', not as a forecast of its number.",
         "- **Replication samples are small**, and checks on one team overlap (attack and defence, first blood and what "
-        "follows it), so the ranges in section 3 are too narrow. It can't show that the new rule beats the old one.",
-        "- The dispersion numbers come from the same games as the reports. They're league-wide, with no team tuned.",
-        "- The ranges printed on cards are still per-round Wilson ranges; only the choice of findings allows for clustering."]
+        "follows it), so the ranges in section 2 are too narrow. It can't show that the new rule beats the old one.",
+        "- The correlations come from the same games as the reports. They're league-wide, with no team tuned (EVAL_RANGES.md).",
+        "- **Old rule** here uses the D-025 ranges, which are wider than the ones the first version printed. With those, the old rule gave 93 findings against 65 by chance."]
     out = ROOT / "docs" / "EVAL_FINDINGS.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print("\n".join(lines[lines.index("## 2. How many findings chance alone gives"):]))
+    print("\n".join(lines[lines.index("## 1. How many findings chance alone gives"):]))
 
 
 if __name__ == "__main__":

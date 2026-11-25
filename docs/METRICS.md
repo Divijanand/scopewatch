@@ -4,13 +4,13 @@ Generated from `engine/metrics` by `scripts/gen_metrics_doc.py`. Do not edit by 
 
 Every rate in Scopewatch reports:
 - numerator *k* and denominator *n*;
-- a Wilson 95% interval;
+- a Wilson 95% interval, widened because rounds of one game repeat each other (D-025, EVAL_RANGES.md);
 - a small-sample flag when *n* < 10;
 - unknown or excluded counts with a reason;
 - the number of maps and series;
 - the round keys behind it (`game_id:round_no`), split into supporting and contrary.
 
-Rounds inside a match aren't independent, so the intervals are a little optimistic. Treat them as a guide to sample size, not as exact probabilities.
+Each measure's within-game correlation is measured league-wide, not per team, so one team can be more or less steady than its range assumes. Treat the intervals as a guide to sample size, not as exact probabilities. They describe the games in scope; they don't forecast the next one.
 
 Shared definitions:
 - **Round clock** `t_round`: seconds since the buy phase ended (DECISIONS D-004).

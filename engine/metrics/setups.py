@@ -77,7 +77,7 @@ def setups(con, f: Filters) -> MetricResult:
         players = ranked(Counter(r[3] for r in rs))
         targets = ranked(Counter(r[5] for r in rs if r[5]), 2)
         res.breakdown.append(dict(
-            bucket=callout, callout=callout, rate=Rate.of(len(rs), n),
+            bucket=callout, callout=callout, rate=Rate.over("op.setups.callout", rs, named),
             players=[dict(name=nm, k=k) for nm, k in players],
             targets=[dict(callout=c, k=k) for c, k in targets],
             kills=sum(1 for r in rs if r[6] == "kill"),
@@ -130,7 +130,7 @@ def deaths(con, f: Filters) -> MetricResult:
         by.setdefault(r[2], []).append(r)
     for callout, rs in sorted(by.items(), key=lambda kv: (-len(kv[1]), str(kv[0]))):
         res.breakdown.append(dict(
-            bucket=callout, callout=callout, rate=Rate.of(len(rs), n),
+            bucket=callout, callout=callout, rate=Rate.over("op.deaths.callout", rs, named),
             from_=[dict(callout=c, k=k) for c, k in ranked(Counter(r[3] for r in rs if r[3]), 2)],
             weapons=[dict(weapon=wpn, k=k) for wpn, k in ranked(Counter(r[4] for r in rs), 2)],
             opening=sum(1 for r in rs if r[6]),
@@ -142,6 +142,6 @@ def deaths(con, f: Filters) -> MetricResult:
         res.rate = top["rate"]
         res.supporting = top["round_keys"]
         res.contrary = sorted({r[0] for r in named} - set(top["round_keys"]))
-    res.value = dict(first_death=Rate.of(sum(1 for r in named if r[6]), n))
+    res.value = dict(first_death=Rate.over("op.deaths.first", [r for r in named if r[6]], named))
     res.maps = len({r[0].split(":")[0] for r in rows})
     return res

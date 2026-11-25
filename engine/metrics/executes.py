@@ -140,27 +140,27 @@ def executes(con, f: Filters) -> MetricResult:
         per_round = {kd: round(sum(c[kd] for c in kinds) / k, 1) for kd in ("smoke", "flash", "stun", "info", "other")}
         ab_rounds = Counter(a for u in util for a in set(u))
         ent = [entry[r[0]] for r in rs if r[0] in entry]
+        faced = [r for r in rs if r[0] in vs_op]
         res.breakdown.append(dict(
-            bucket=site, label=f"{site} site", site=site, rate=Rate.of(k, n),
-            won=Rate.of(sum(1 for r in rs if r[2]), k),
+            bucket=site, label=f"{site} site", site=site, rate=Rate.over("att.executes.site", rs, rows),
+            won=Rate.over("att.executes.won", [r for r in rs if r[2]], rs),
             plant_t=round(float(np.median([r[4] for r in rs])), 1),
             entry_t=round(float(np.median([t for t, _ in ent])), 1) if ent else None,
-            entry=Rate.of(len(ent), k),
+            entry=Rate.over("att.executes.entry", [r for r in rs if r[0] in entry], rs),
             entry_callouts=[dict(callout=c, k=v) for c, v in ranked(Counter(c for _, c in ent), 3)],
             pace=[dict(pace=nm, k=sum(1 for r in rs if lo <= r[4] < hi)) for nm, lo, hi in PACE],
             utility_per_round=per_round,
             abilities=[dict(ability=a, rounds=v) for a, v in ranked(ab_rounds, 5)],
             league=Rate.of(league_sites.get(site, 0), league_n) if league_n >= MIN_LEAGUE else None,
-            vs_op=dict(rounds=sum(1 for r in rs if r[0] in vs_op),
-                       op_kill=Rate.of(sum(1 for r in rs if r[0] in vs_op and vs_op[r[0]][1] > 0),
-                                       sum(1 for r in rs if r[0] in vs_op)),
-                       lost_no_kill=Rate.of(sum(1 for r in rs if r[0] in vs_op and vs_op[r[0]][0] and not vs_op[r[0]][1]),
-                                            sum(1 for r in rs if r[0] in vs_op))),
+            vs_op=dict(rounds=len(faced),
+                       op_kill=Rate.over("att.executes.op_kill", [r for r in faced if vs_op[r[0]][1] > 0], faced),
+                       lost_no_kill=Rate.over("att.executes.lost_no_kill",
+                                              [r for r in faced if vs_op[r[0]][0] and not vs_op[r[0]][1]], faced)),
             round_keys=sorted(r[0] for r in rs),
         ))
     no_plant = [r for r in rows if r[3] is None]
-    res.value = dict(no_plant=Rate.of(len(no_plant), n),
-                     no_plant_won=Rate.of(sum(1 for r in no_plant if r[2]), len(no_plant)))
+    res.value = dict(no_plant=Rate.over("att.executes.no_plant", no_plant, rows),
+                     no_plant_won=Rate.over("att.executes.no_plant_won", [r for r in no_plant if r[2]], no_plant))
     if res.breakdown:
         top = res.breakdown[0]
         res.rate = top["rate"]

@@ -11,7 +11,7 @@ Scopewatch is a VALORANT scouting tool built on licensed GRID esports data. Read
 ## Layout
 - `engine/ingest/`: streaming ingest with an undo stack for GRID reversals. Writes per-series parquet into `cache/v2/raw/`.
 - `engine/store.py`: builds the DuckDB analytical store, then names positions with callouts (`engine/callouts.py`).
-- `engine/metrics/`: versioned metrics registered with `@metric`. Each returns `MetricResult` with `n/N`, unknowns, Wilson ranges and supporting/contrary round keys.
+- `engine/metrics/`: versioned metrics registered with `@metric`. Each returns `MetricResult` with `n/N`, unknowns, Wilson ranges and supporting/contrary round keys. Team rates use `Rate.over(measure, hits, units)`, which widens the range for rounds of one game repeating each other (D-025); plain `Rate.of` is only for league rates.
 - `engine/maps.py`, `engine/minimaps.py`, `engine/spatial.py`: map images and versioned world→pixel transforms.
 - `engine/vod.py`: the analyst's VOD links, kept in a separate SQLite file.
 - `api/server.py`: FastAPI. Every response is an envelope with coverage, warnings and definition versions.

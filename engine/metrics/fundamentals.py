@@ -243,7 +243,7 @@ def retakes(con, f: Filters) -> MetricResult:
         return res
     alive = _plant_alive(con, plants)
     won = [r for r in plants if r[5]]
-    res.rate = Rate.of(len(won), n)
+    res.rate = Rate.over("team.retakes.retake", won, plants)
     res.supporting = sorted(r[0] for r in plants if not r[5])
     res.contrary = sorted(r[0] for r in won)
     lrows = _league_rounds(con, fd)
@@ -253,9 +253,9 @@ def retakes(con, f: Filters) -> MetricResult:
     lby = {b: [r for r in lplants if lalive.get(r[0], {}).get("bucket") == b] for b in PLANT_BUCKETS}
     res.value = dict(
         n=n,
-        retake=Rate.of(len(won), n),
+        retake=res.rate,
         league_retake=Rate.of(sum(1 for r in lplants if r[5]), len(lplants)) if len(lplants) >= MIN_LEAGUE else None,
-        plants_faced=Rate.of(n, len(rows)),
+        plants_faced=Rate.over("team.retakes.plants_faced", plants, rows),
         league_plants_faced=Rate.of(len(lplants), len(lrows)) if len(lrows) >= MIN_LEAGUE else None,
     )
     for b in PLANT_BUCKETS:
@@ -264,7 +264,7 @@ def retakes(con, f: Filters) -> MetricResult:
         res.breakdown.append(dict(
             bucket=b,
             label=f"{b} at plant",
-            rate=Rate.of(sum(1 for r in rs if r[5]), len(rs)),
+            rate=Rate.over("team.retakes.by_numbers", [r for r in rs if r[5]], rs),
             league=Rate.of(sum(1 for r in ls if r[5]), len(ls)) if len(ls) >= MIN_LEAGUE else None,
         ))
     res.series = len({r[1] for r in plants})
@@ -295,11 +295,11 @@ def post_plant(con, f: Filters) -> MetricResult:
     lby = {b: [r for r in lplanted if lalive.get(r[0], {}).get("bucket") == b] for b in PLANT_BUCKETS}
     res.value = dict(
         n=n,
-        plant_share=Rate.of(len(planted), n),
+        plant_share=Rate.over("team.post_plant.plant_share", planted, rows),
         league_plant_share=Rate.of(len(lplanted), len(lrows)) if len(lrows) >= MIN_LEAGUE else None,
-        post_plant_win=Rate.of(sum(1 for r in planted if r[5]), len(planted)),
+        post_plant_win=Rate.over("team.post_plant.win", [r for r in planted if r[5]], planted),
         league_post_plant_win=Rate.of(sum(1 for r in lplanted if r[5]), len(lplanted)) if len(lplanted) >= MIN_LEAGUE else None,
-        pre_plant_losses=Rate.of(len(pre_losses), len(losses)),
+        pre_plant_losses=Rate.over("team.post_plant.pre_plant_losses", pre_losses, losses),
         league_pre_plant_losses=Rate.of(len(lpre_losses), len(llosses)) if len(llosses) >= MIN_LEAGUE else None,
     )
     for b in PLANT_BUCKETS:
@@ -308,7 +308,7 @@ def post_plant(con, f: Filters) -> MetricResult:
         res.breakdown.append(dict(
             bucket=b,
             label=f"{b} at plant",
-            rate=Rate.of(sum(1 for r in rs if r[5]), len(rs)),
+            rate=Rate.over("team.post_plant.by_numbers", [r for r in rs if r[5]], rs),
             league=Rate.of(sum(1 for r in ls if r[5]), len(ls)) if len(ls) >= MIN_LEAGUE else None,
         ))
     res.supporting = sorted(r[0] for r in pre_losses)
@@ -350,7 +350,7 @@ def economy(con, f: Filters) -> MetricResult:
         res.breakdown.append(dict(
             bucket=key,
             label=key.replace("_", " "),
-            rate=Rate.of(sum(1 for r in rs if r[5]), len(rs)),
+            rate=Rate.over(f"team.economy.{key}", [r for r in rs if r[5]], rs),
             league=Rate.of(sum(1 for r in ls if r[5]), len(ls)) if len(ls) >= MIN_LEAGUE else None,
         ))
     pistols = [r for r in rows if _is_pistol(r[3])]
@@ -358,9 +358,9 @@ def economy(con, f: Filters) -> MetricResult:
     bonus = [r for r in rows if r[3] in (2, 14) and pwin.get((_game(r[0]), r[3] - 1, r[6]))]
     lbonus = [r for r in lrows if r[3] in (2, 14) and lpwin.get((_game(r[0]), r[3] - 1, r[6]))]
     res.value.update(dict(
-        pistol=Rate.of(sum(1 for r in pistols if r[5]), len(pistols)),
+        pistol=Rate.over("team.economy.pistol", [r for r in pistols if r[5]], pistols),
         league_pistol=Rate.of(sum(1 for r in lpistols if r[5]), len(lpistols)) if len(lpistols) >= MIN_LEAGUE else None,
-        bonus=Rate.of(sum(1 for r in bonus if r[5]), len(bonus)),
+        bonus=Rate.over("team.economy.bonus", [r for r in bonus if r[5]], bonus),
         league_bonus=Rate.of(sum(1 for r in lbonus if r[5]), len(lbonus)) if len(lbonus) >= MIN_LEAGUE else None,
     ))
     res.series = len({r[1] for r in rows})
@@ -408,11 +408,11 @@ def openings(con, f: Filters) -> MetricResult:
 
     res.value = dict(
         n=len(used),
-        first_blood=Rate.of(len(got), len(used)),
+        first_blood=Rate.over("team.openings.first_blood", got, used),
         league_first_blood=Rate.of(len(lgot), len(lused)) if len(lused) >= MIN_LEAGUE else None,
-        win_after_first_blood=Rate.of(sum(1 for r in got if r[5]), len(got)),
+        win_after_first_blood=Rate.over("team.openings.after_first_blood", [r for r in got if r[5]], got),
         league_win_after_first_blood=Rate.of(sum(1 for r in lgot if r[5]), len(lgot)) if len(lgot) >= MIN_LEAGUE else None,
-        win_after_first_death=Rate.of(sum(1 for r in gave if r[5]), len(gave)),
+        win_after_first_death=Rate.over("team.openings.after_first_death", [r for r in gave if r[5]], gave),
         league_win_after_first_death=Rate.of(sum(1 for r in lgave if r[5]), len(lgave)) if len(lgave) >= MIN_LEAGUE else None,
     )
     res.supporting = sorted(r[0] for r in gave if not r[5])
@@ -478,9 +478,9 @@ def closing(con, f: Filters) -> MetricResult:
     lcb_den, lcb, lth_den, lth = rates(lg)
     res.value = dict(
         n=int(len(g)),
-        comebacks=Rate.of(len(cb), len(cb_den)),
+        comebacks=Rate.over("team.closing.comebacks", cb["round_key"], cb_den["round_key"]),
         league_comebacks=Rate.of(len(lcb), len(lcb_den)) if len(lcb_den) >= MIN_LEAGUE else None,
-        throws=Rate.of(len(th), len(th_den)),
+        throws=Rate.over("team.closing.throws", th["round_key"], th_den["round_key"]),
         league_throws=Rate.of(len(lth), len(lth_den)) if len(lth_den) >= MIN_LEAGUE else None,
     )
     res.supporting = sorted(th["round_key"].tolist())

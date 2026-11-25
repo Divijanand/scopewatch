@@ -34,15 +34,17 @@ $$t_{\text{round}} = t_{\text{event}} - t_{\text{freeze end}}$$
 
 **Front end.** _TODO: describe the web stack and views once built._
 
-**Confidence.** _TODO if implemented: Wilson score intervals on every rate, so small samples are visibly uncertain:_
+**Confidence.** Every team rate has a 95% Wilson range. Rounds of one game repeat each other (same plan, same opponent), so the range uses $n / (1 + (m - 1)\rho)$ rounds instead of $n$, where $m$ is the number of rounds per game and $\rho$ is measured league-wide for each measure. We tested it: split a team's games in two and the halves should disagree beyond 95% in 5% of cases. They disagreed in 19.1% with ordinary ranges and 7.0% with ours.
 
 $$\hat p \pm z\sqrt{\frac{\hat p(1-\hat p)}{n}} \;\rightarrow\; \frac{\hat p + \frac{z^2}{2n} \pm z\sqrt{\frac{\hat p(1-\hat p)}{n} + \frac{z^2}{4n^2}}}{1+\frac{z^2}{n}}$$
 
 ## Built with JetBrains
 
-**PyCharm** is where the project lives. Every step of the pipeline, from ingest through the store, maps, model training and each ML evaluation, is a shared run configuration in the repo (12 of them), so a teammate clones it and runs everything from the toolbar.
+**PyCharm** is where the project lives. Every step of the pipeline, from ingest through the store, maps, model training and each ML evaluation, is a shared run configuration in the repo (20 of them), so a teammate clones it and runs everything from the toolbar.
 
-**Junie** built four of our features and ML steps: the round win-probability model, Operator value (win probability added), and two rounds of model experiments (richer features, and utility still held). We ran Junie like a teammate taking tickets: every task was a written brief in `docs/briefs/` with files, rules, a definition of done and checks to run, and `AGENTS.md` carried the data-licence rules it must never break. Claude Code reviewed each result the way you'd review a pull request: it read the diff, ran the tests and reproduced the numbers independently. Review caught real problems (label leakage, a metric that worked alone but wasn't wired in, a baseline 0.001 off that led us to fix our own store) and once caught a mistake in our own brief. Partway through, Junie switched from its default model to GPT-5.3-codex, so one model writes and another reviews.
+**Junie** built our features and ML steps from written briefs: the round win-probability model, Operator value (win probability added), the model experiments (richer features, utility still held, fight-level data, synthetic rounds and stress tests), recon timing and dry duels, the five team-fundamentals cards, the Report tab's findings and the Matchup tab. We ran Junie like a teammate taking tickets: every task is a brief in `docs/briefs/` with files, rules, a definition of done and checks to run, and `AGENTS.md` carries the data-licence rules it must never break. Partway through, Junie switched from its default model to GPT-5.3-codex.
+
+**Claude Code**, outside the IDE, did the rest, and it's more than review. It wrote the engine rewrite, the map, utility, ultimate and predictability views and the deployment; it wrote the briefs; it reviewed every Junie result and fixed what it found, sometimes by finishing or rewriting the code; and it built the statistical checks (D-020, D-024, D-025). Review caught real problems: label leakage, a metric that worked alone but wasn't wired in, a tab that read a field the API never sends. It also caught our own: an impossible rule in one brief, and a headline feature that turned out to be mostly chance until we tested and fixed it.
 
 The full log, with the model, the task, what review found and the commit for every step, is in [AI_SHOWCASE.md](../AI_SHOWCASE.md), including our honest feedback for JetBrains: what Junie did well, where review mattered, and the friction we hit.
 

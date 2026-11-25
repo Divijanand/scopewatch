@@ -152,7 +152,7 @@ function SiteBlock({ b, n, onOpen }: { b: Record<string, any> & { rate: Rate }; 
   )
 }
 
-type Wpa = { n: number; mean: number; lo: number; hi: number; league_mean: number }
+type Wpa = { n: number; mean: number; lo: number; hi: number; league_mean: number; p_value: number | null }
 type WpaPlayer = { player_id: string; player_name: string; n: number; mean: number; lo?: number; hi?: number; small_sample?: boolean }
 
 const pts = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}`
@@ -166,7 +166,7 @@ function WpaScale({ v }: { v: Wpa }) {
       <span>{pts(-lim)}</span>
       <span className="wpa-track">
         <span className="wpa-zero" style={{ left: x(0) }} />
-        <span className="wpa-range" style={{ left: x(v.lo), width: `calc(${x(v.hi)} - ${x(v.lo)})` }} />
+        {v.p_value != null && <span className="wpa-range" style={{ left: x(v.lo), width: `calc(${x(v.hi)} - ${x(v.lo)})` }} />}
         <span className="fwd-mark league" style={{ left: x(v.league_mean) }} />
         <span className="fwd-mark team" style={{ left: x(v.mean) }} />
       </span>
@@ -241,8 +241,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
   const moved = esc?.breakdown.find((b) => b.bucket === 'moved')
   const stayed = esc?.breakdown.find((b) => b.bucket === 'stayed')
   const sLeague: Rate | null = s0?.league ?? null
-  const sCompare = s0 && sLeague?.p != null && s0.rate.p != null
-    ? s0.rate.p > sLeague.p * 1.5 ? 'far more often than' : s0.rate.p < sLeague.p / 1.5 ? 'less often than' : 'about as often as'
+  const sCompare = s0 && sLeague?.p != null && s0.rate.lo != null && s0.rate.hi != null
+    ? s0.rate.lo > sLeague.p ? 'more often than' : s0.rate.hi < sLeague.p ? 'less often than' : 'not clearly different from'
     : null
   const main = hold.breakdown[0]
   const shift: Rate | undefined = hold.value.possession_shift
@@ -341,8 +341,8 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           {dv.diff > 0 && agentsBeyond.length > 0 && <>, most clearly on {list(agentsBeyond.map((a: any) => cap(a.agent)))}</>}.
         </p>
         <span className={dv.total < 100 ? 'evidence thin' : 'evidence'}>
-          {dv.total} dry fights; likely between {dpts(dv.lo)} and {dpts(dv.hi)} points.
-          {' '}{dv.beyond_noise ? 'The range excludes 0.' : 'The range includes 0, so this is a hint, not a real difference yet.'}
+          {dv.total} dry fights{dv.p_value == null ? '' : `; likely between ${dpts(dv.lo)} and ${dpts(dv.hi)} points`}.
+          {' '}{dv.p_value == null ? 'All from one series, too few for a range.' : dv.beyond_noise ? 'The range excludes 0.' : 'The range includes 0, so this is a hint, not a real difference yet.'}
         </span>
         <ul className="carriers">
           {duelRows.map((b: any) => (
@@ -511,12 +511,12 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
             {sideWord && <> on {sideWord}</>}, against <b>{pts(wv.league_mean)}</b> for every team here.
           </p>
           <span className={wv.n < 10 ? 'evidence thin' : 'evidence'}>
-            {wv.n} Operator rounds; likely between {pts(wv.lo)} and {pts(wv.hi)}.
+            {wv.n} Operator rounds{wv.p_value == null ? ', all from one series: too few for a range' : `; likely between ${pts(wv.lo)} and ${pts(wv.hi)}`}.
             {wv.n < 10 && ' Small sample, treat as a hint.'}
           </span>
           <WpaScale v={wv} />
           <p className="aside">
-            {wv.lo <= wv.league_mean && wv.league_mean <= wv.hi
+            {wv.p_value == null ? 'Treat it as a hint.' : wv.lo <= wv.league_mean && wv.league_mean <= wv.hi
               ? 'That range includes the league average, so this is a hint, not a real difference yet.'
               : wv.mean > wv.league_mean
                 ? 'Their Operator earns more than the league’s, and the range doesn’t overlap the league average.'
@@ -557,9 +557,9 @@ export function Findings({ t, side, activePlayer, onPlayer, buckets, onBucket, o
           {gLeague?.p != null && (
             <p className="aside">
               Every team on this map and side: {pct(gLeague)}.{' '}
-              {gamble.rate.p != null && (gamble.rate.p > gLeague.p * 1.25
+              {gamble.rate.lo != null && gamble.rate.hi != null && (gamble.rate.lo > gLeague.p
                 ? 'Their Operator is a worse gamble than most.'
-                : gamble.rate.p < gLeague.p / 1.25 ? 'Their Operator pays off more often than most.' : 'About the league norm.')}
+                : gamble.rate.hi < gLeague.p ? 'Their Operator pays off more often than most.' : 'That’s inside their range, so it isn’t a clear difference.')}
             </p>
           )}
           <ul className="spots">
